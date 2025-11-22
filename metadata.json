@@ -1,0 +1,7 @@
+{
+  "name": "MicroClimate",
+  "description": "High-resolution climate data visualization platform.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
