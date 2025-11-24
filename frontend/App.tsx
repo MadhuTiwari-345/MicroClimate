@@ -1,17 +1,18 @@
 
-import React, { useState } from 'react';
-import { Navbar } from '../components/Navbar';
-import { Hero } from '../components/Hero';
-import { Earth3D } from '../components/Earth3D';
-import { Dashboard } from '../components/Dashboard';
-import { Profile } from '../components/Profile';
-import { Intro } from '../components/Intro';
-import { AuthModal } from '../components/AuthModal';
-import { NotificationsPage } from '../components/NotificationsPage';
-import { AlertsPage } from '../components/AlertsPage';
-import { AdminDashboard } from '../components/AdminDashboard';
-import { ExplorePage } from '../components/ExplorePage';
-import { AboutPage } from '../components/AboutPage';
+import React, { useEffect, useState } from 'react';
+import { Navbar } from './components/Navbar';
+import { Hero } from './components/Hero';
+import { Earth3D } from './components/Earth3D';
+import { Dashboard } from './components/Dashboard';
+import { Profile } from './components/Profile';
+import { Intro } from './components/Intro';
+import { AuthModal } from './components/AuthModal';
+import { NotificationsPage } from './components/NotificationsPage';
+import { AlertsPage } from './components/AlertsPage';
+import { AdminDashboard } from './components/AdminDashboard';
+import { ExplorePage } from './components/ExplorePage';
+import { AboutPage } from './components/AboutPage';
+import { getHello } from './services/api'; 
 
 // Define User Interface
 export interface UserData {
@@ -32,6 +33,16 @@ const App: React.FC = () => {
   const [user, setUser] = useState<UserData | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+  useEffect(() => {
+  getHello()
+    .then((data) => {
+      console.log("Test backend response:", data);
+    })
+    .catch((err) => {
+      console.error("Backend error:", err);
+    });
+}, []);
+
 
   const handleNavigate = (view: 'landing' | 'dashboard' | 'profile' | 'notifications' | 'alerts' | 'admin' | 'explore' | 'about') => {
     setCurrentView(view);

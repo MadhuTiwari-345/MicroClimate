@@ -8,7 +8,7 @@ import {
 import { 
   fetchAdminData, subscribeToSystemStats, approveReport, removeReport, suspendUser, getLogs,
   AdminUser, AuditLog, ReportItem, SystemStat 
-} from '../frontend/services/adminService';
+} from '../services/adminService';
 
 interface AdminDashboardProps {
   onNavigate: (view: 'landing' | 'dashboard' | 'profile' | 'admin') => void;

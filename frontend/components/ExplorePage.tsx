@@ -6,8 +6,8 @@ import {
   Navigation, Snowflake, Tornado, Loader2, 
   Sun, Droplets, Wind, Activity, Layers, User, Check, EyeOff, Eye
 } from 'lucide-react';
-import { getCoordinates, getCityFromCoordinates } from '../frontend/services/geminiService';
-import { fetchWeatherData, WeatherData } from '../frontend/services/weatherService';
+import { getCoordinates, getCityFromCoordinates } from '../services/geminiService';
+import { fetchWeatherData, WeatherData } from '../services/weatherService';
 
 interface ExplorePageProps {
   onNavigate: (view: 'landing' | 'dashboard' | 'profile' | 'notifications' | 'alerts' | 'admin' | 'explore') => void;

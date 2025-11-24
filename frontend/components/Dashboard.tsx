@@ -6,8 +6,8 @@ import {
   Globe, CloudRain, Cloud, User, Bell, AlertTriangle, MapPin,
   CloudSnow, CloudLightning, X, Clock, Flame, LayoutTemplate, RefreshCw
 } from 'lucide-react';
-import { getLocationSuggestions, getCoordinates, getCityFromCoordinates } from '../frontend/services/geminiService';
-import { fetchWeatherData, WeatherData, getWeatherIconType, getWeatherLabel } from '../frontend/services/weatherService';
+import { getLocationSuggestions, getCoordinates, getCityFromCoordinates } from '../services/geminiService';
+import { fetchWeatherData, WeatherData, getWeatherIconType, getWeatherLabel } from '../services/weatherService';
 
 interface DashboardProps {
   onNavigateHome: () => void;
