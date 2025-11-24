@@ -7,7 +7,7 @@ import {
   Tornado, User, ExternalLink, Bookmark, Share2
 } from 'lucide-react';
 import { UserData } from '../App';
-import { getGlobalWeatherEvents, getClimateUpdates, getArticleDetails, generateClimateReport } from '../services/geminiService';
+import { getGlobalWeatherEvents, getClimateUpdates, getArticleDetails, generateClimateReport } from '../frontend/services/geminiService';
 
 interface AlertsPageProps {
   onNavigate: (view: 'landing' | 'dashboard' | 'profile' | 'notifications' | 'alerts' | 'explore') => void;

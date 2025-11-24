@@ -1,17 +1,17 @@
 
 import React, { useState } from 'react';
-import { Navbar } from './components/Navbar';
-import { Hero } from './components/Hero';
-import { Earth3D } from './components/Earth3D';
-import { Dashboard } from './components/Dashboard';
-import { Profile } from './components/Profile';
-import { Intro } from './components/Intro';
-import { AuthModal } from './components/AuthModal';
-import { NotificationsPage } from './components/NotificationsPage';
-import { AlertsPage } from './components/AlertsPage';
-import { AdminDashboard } from './components/AdminDashboard';
-import { ExplorePage } from './components/ExplorePage';
-import { AboutPage } from './components/AboutPage';
+import { Navbar } from '../components/Navbar';
+import { Hero } from '../components/Hero';
+import { Earth3D } from '../components/Earth3D';
+import { Dashboard } from '../components/Dashboard';
+import { Profile } from '../components/Profile';
+import { Intro } from '../components/Intro';
+import { AuthModal } from '../components/AuthModal';
+import { NotificationsPage } from '../components/NotificationsPage';
+import { AlertsPage } from '../components/AlertsPage';
+import { AdminDashboard } from '../components/AdminDashboard';
+import { ExplorePage } from '../components/ExplorePage';
+import { AboutPage } from '../components/AboutPage';
 
 // Define User Interface
 export interface UserData {

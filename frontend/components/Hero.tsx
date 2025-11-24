@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Crosshair, Globe } from 'lucide-react';
-import { getMicroclimateSnapshot } from '../services/geminiService';
+import { getMicroclimateSnapshot } from '../frontend/services/geminiService';
 
 interface HeroProps {
   onExplore: () => void;
