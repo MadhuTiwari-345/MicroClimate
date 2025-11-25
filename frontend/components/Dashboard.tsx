@@ -7,7 +7,7 @@ import {
   CloudSnow, CloudLightning, X, Clock, Flame, LayoutTemplate, RefreshCw,
   ShieldCheck, Zap, Radar
 } from 'lucide-react';
-import { getLocationSuggestions, getCoordinates, getCityFromCoordinates, getClimateAnalysis } from '../services/geminiService';
+import { getLocationSuggestions, getCoordinates, getCityFromCoordinates, getClimateAnalysis } from '../services/locationservice';
 import { fetchWeatherData, WeatherData, getWeatherIconType, getWeatherLabel } from '../services/weatherService';
 
 interface DashboardProps {
@@ -46,13 +46,13 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
   onAuthClick,
   isLoggedIn
 }) => {
-  const [searchQuery, setSearchQuery] = useState('San Francisco, CA');
+  const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
   
   const [locationAccuracy, setLocationAccuracy] = useState<number | null>(null);
-  const [currentCoords, setCurrentCoords] = useState<{lat: number, lon: number}>({ lat: 37.7749, lon: -122.4194 });
+  const [currentCoords, setCurrentCoords] = useState<{lat: number, lon: number}>({ lat: 0, lon: 0 });
   const [climateAnalysis, setClimateAnalysis] = useState<{ anomaly: string, prediction: string } | null>(null);
   
   const [tempUnit, setTempUnit] = useState<'C' | 'F'>(() => {
@@ -129,7 +129,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
         
         if (finalName) {
             addToRecentLocations(finalName, lat, lon);
-            getClimateAnalysis(finalName, data?.current.temperature || 0, data?.current.windSpeed || 0).then(analysis => {
+            getClimateAnalysis(lat, lon).then(analysis => {
                 setClimateAnalysis(analysis);
             });
         }
@@ -153,7 +153,23 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
         console.error("Failed to parse recent locations", e);
       }
     }
-    loadWeatherData(37.7749, -122.4194, 'San Francisco, CA');
+
+    // Check if navigating from Explore with location data
+    const storedCoords = sessionStorage.getItem('dashboardCoords');
+    const storedLocation = sessionStorage.getItem('dashboardLocation');
+    
+    if (storedCoords && storedLocation) {
+      try {
+        const coords = JSON.parse(storedCoords);
+        loadWeatherData(coords.lat, coords.lon, storedLocation);
+        // Clean up sessionStorage after use
+        sessionStorage.removeItem('dashboardCoords');
+        sessionStorage.removeItem('dashboardLocation');
+      } catch (e) {
+        console.error("Failed to parse dashboard coords", e);
+      }
+    }
+    // No default load - user must search or use location
   }, [loadWeatherData]);
 
   useEffect(() => {
@@ -317,7 +333,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
   const safety = calculateSafetyScore();
 
   return (
-    <div className="relative w-full h-screen text-white overflow-hidden font-sans selection:bg-[#00C2FF] selection:text-black pointer-events-none animate-fade-in">
+    <div className="absolute inset-0 w-full h-screen text-white overflow-hidden font-sans selection:bg-[#00C2FF] selection:text-black animate-fade-in z-20 pointer-events-auto">
       
       {/* Top Bar */}
       <div className="absolute top-4 left-[340px] right-4 z-20 flex items-center justify-between">
@@ -456,7 +472,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
       </div>
 
       {/* Left Sidebar */}
-      <div className="absolute top-4 bottom-4 left-4 w-[300px] flex flex-col space-y-4 z-20 pointer-events-auto overflow-y-auto pr-2 custom-scrollbar">
+      <div className="absolute top-4 bottom-4 left-4 w-[300px] flex flex-col space-y-4 z-10 pointer-events-auto overflow-y-auto pr-2 custom-scrollbar">
         
         {/* Header */}
         <div className="bg-[#0B0E14]/90 backdrop-blur-md border border-white/10 rounded-2xl p-4 shrink-0">
@@ -689,10 +705,10 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                         </div>
 
                         <div className="flex items-center justify-center w-12 text-blue-400">
-                            {d.precipProb > 0 ? (
+                            {false ? (
                                 <>
                                    <Droplets className="w-3 h-3 mr-1" />
-                                   <span className="text-[9px]">{d.precipProb}%</span>
+                                   <span className="text-[9px]">0%</span>
                                 </>
                             ) : (
                                 <span className="text-[9px] text-gray-600">-</span>
@@ -717,12 +733,12 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
              {weather && weather.hourly && weather.hourly.length > 0 ? (
                (() => {
                  // Robust Filter: Ensure temp is a number and not NaN
-                 const validHourly = weather.hourly.filter(h => typeof h.temp === 'number' && !isNaN(h.temp));
+                 const validHourly = weather.hourly.filter(h => typeof h.temperature === 'number' && !isNaN(h.temperature));
                  
                  // Fallback if no valid data found
                  if (validHourly.length === 0) return <div className="h-full flex items-center justify-center text-[10px] text-gray-500">No data available</div>;
 
-                 const temps = validHourly.map(h => h.temp);
+                 const temps = validHourly.map(h => h.temperature);
                  const min = Math.min(...temps);
                  const max = Math.max(...temps);
                  
@@ -739,9 +755,9 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                     
                     let y = 50;
                     if (effectiveRange !== 0) {
-                         y = 100 - ((h.temp - effectiveMin) / effectiveRange) * 100;
+                         y = 100 - ((h.temperature - effectiveMin) / effectiveRange) * 100;
                     }
-                    return {x, y, temp: h.temp, wind: h.windSpeed, time: h.time};
+                    return {x, y, temp: h.temperature, wind: h.windSpeed, time: h.time};
                  });
 
                  // Create Path
@@ -851,7 +867,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                     if (effectiveRange !== 0) {
                          y = 100 - ((h.windSpeed - effectiveMin) / effectiveRange) * 100;
                     }
-                    return {x, y, temp: h.temp, wind: h.windSpeed, time: h.time};
+                    return {x, y, temp: h.temperature, wind: h.windSpeed, time: h.time};
                  });
 
                  const lineD = points.length > 1
@@ -944,7 +960,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
           ) : (
               <div className="flex items-end justify-between h-24 space-x-2 px-1">
                   {weather?.daily.map((d, i) => {
-                      const prob = d.precipProb || 0;
+                      const prob = 0; // precipProb not available
                       const dayLabel = new Date(d.date).toLocaleDateString('en-US', { weekday: 'short' });
                       return (
                           <div key={i} className="flex flex-col items-center flex-1 group">

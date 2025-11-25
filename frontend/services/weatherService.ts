@@ -1,6 +1,10 @@
-
+import { fetchForecastByCity, ForecastResponse } from './api';
+import { getCityFromCoordinates } from './locationservice';
 
 export interface WeatherData {
+  city: string;
+  lat: number;
+  lon: number;
   current: {
     temperature: number;
     humidity: number;
@@ -18,100 +22,34 @@ export interface WeatherData {
     code: number;
     maxTemp: number;
     minTemp: number;
-    precipProb: number;
-    precipSum: number;
   }>;
   hourly: Array<{
     time: string;
-    temp: number;
+    temperature: number;
     windSpeed: number;
   }>;
 }
 
 export const fetchWeatherData = async (lat: number, lon: number): Promise<WeatherData | null> => {
   try {
-    // Fetch Weather Data
-    // Uses Open-Meteo which provides global coverage
-    // Changed forecast_days to 8 to ensure we have a full 7-day forecast available
-    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,is_day,weather_code,pressure_msl,wind_speed_10m,wind_direction_10m&hourly=temperature_2m,visibility,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,uv_index_max,precipitation_sum,precipitation_probability_max&timezone=auto&forecast_days=8`;
+    // Fetch weather directly from backend using lat/lon endpoint
+    const response = await fetch(`http://127.0.0.1:8000/weather/forecast_by_coords?lat=${lat}&lon=${lon}`);
     
-    // Fetch AQI Data
-    const aqiUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=us_aqi`;
-
-    const [weatherRes, aqiRes] = await Promise.all([
-      fetch(weatherUrl),
-      fetch(aqiUrl)
-    ]);
-
-    if (!weatherRes.ok) throw new Error('Failed to fetch weather data');
-
-    const weatherJson = await weatherRes.json();
-    
-    // Handle AQI gracefully as it may not exist for oceans/remote areas
-    let aqiValue = 0;
-    if (aqiRes.ok) {
-        try {
-            const aqiJson = await aqiRes.json();
-            aqiValue = aqiJson.current?.us_aqi ?? 0;
-        } catch (e) {
-            console.warn("AQI data unavailable for this location", e);
-        }
+    if (!response.ok) {
+      console.error("Weather API failed:", response.statusText);
+      return null;
     }
 
-    const current = weatherJson.current;
-    const daily = weatherJson.daily;
-    const hourly = weatherJson.hourly;
-
-    if (!current || !daily || !hourly) return null;
-
-    // Process Daily Forecast with safety checks
-    // Slice 7 days for the new forecast UI
-    const processedDaily = daily.time ? daily.time.slice(0, 7).map((time: string, index: number) => ({
-      date: time,
-      code: daily.weather_code?.[index] ?? 0,
-      maxTemp: daily.temperature_2m_max?.[index] ?? 0,
-      minTemp: daily.temperature_2m_min?.[index] ?? 0,
-      precipProb: daily.precipitation_probability_max?.[index] ?? 0,
-      precipSum: daily.precipitation_sum?.[index] ?? 0,
-    })) : [];
-
-    // Process Hourly (Next 24 hours for graph)
-    // Robust index finding for global timezones
-    let currentHourIndex = 0;
-    if (hourly.time && current.time) {
-        currentHourIndex = hourly.time.findIndex((t: string) => t === current.time);
-        
-        // If exact match fail (sometimes ISO formats diff), try matching YYYY-MM-DDTHH
-        if (currentHourIndex === -1) {
-            const currentHourStr = current.time.substring(0, 13);
-            currentHourIndex = hourly.time.findIndex((t: string) => t.substring(0, 13) === currentHourStr);
-        }
-        
-        // Final fallback
-        if (currentHourIndex === -1) currentHourIndex = 0;
-    }
-
-    const processedHourly = hourly.time ? hourly.time.slice(currentHourIndex, currentHourIndex + 24).map((time: string, index: number) => ({
-      time: time,
-      temp: hourly.temperature_2m?.[currentHourIndex + index] ?? 0,
-      windSpeed: hourly.wind_speed_10m?.[currentHourIndex + index] ?? 0
-    })) : [];
-
+    const data: ForecastResponse = await response.json();
+    
     return {
-      current: {
-        temperature: current.temperature_2m ?? 0,
-        humidity: current.relative_humidity_2m ?? 0,
-        windSpeed: current.wind_speed_10m ?? 0,
-        windDirection: current.wind_direction_10m ?? 0,
-        pressure: current.pressure_msl ?? 1013,
-        uvIndex: daily.uv_index_max?.[0] ?? 0,
-        visibility: hourly.visibility?.[currentHourIndex] ?? 10000,
-        weatherCode: current.weather_code ?? 0,
-        isDay: current.is_day ?? 1,
-      },
-      aqi: aqiValue,
-      daily: processedDaily,
-      hourly: processedHourly
+      city: data.city,
+      lat: data.lat,
+      lon: data.lon,
+      current: data.current,
+      aqi: data.aqi,
+      daily: data.daily,
+      hourly: data.hourly
     };
 
   } catch (error) {

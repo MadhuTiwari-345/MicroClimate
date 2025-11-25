@@ -6,11 +6,12 @@ import {
   Navigation, Snowflake, Tornado, Loader2, 
   Sun, Droplets, Wind, Activity, Layers, User, Check, EyeOff, Eye, MapPin
 } from 'lucide-react';
-import { getCoordinates, getCityFromCoordinates, getLocationSuggestions } from '../services/geminiService';
+import { getCoordinates, getCityFromCoordinates, getLocationSuggestions } from '../services/locationservice';
 import { fetchWeatherData, WeatherData } from '../services/weatherService';
 
 interface ExplorePageProps {
-  onNavigate: (view: 'landing' | 'dashboard' | 'profile' | 'notifications' | 'alerts' | 'admin' | 'explore') => void;
+  searchQuery?: string;
+  onNavigate: (view: 'landing' | 'dashboard' | 'profile' | 'notifications' | 'alerts' | 'admin' | 'explore', query?: string) => void;
   onZoomIn?: () => void;
   onZoomOut?: () => void;
   onLocationSelect?: (lat: number, lon: number) => void;
@@ -29,13 +30,13 @@ interface SavedView {
     layers: LayerConfig[];
 }
 
-export const ExplorePage: React.FC<ExplorePageProps> = ({ onNavigate, onZoomIn, onZoomOut, onLocationSelect }) => {
+export const ExplorePage: React.FC<ExplorePageProps> = ({ searchQuery: initialSearchQuery, onNavigate, onZoomIn, onZoomOut, onLocationSelect }) => {
   // UI State
   const [activeTab, setActiveTab] = useState<'overview' | 'layers' | 'events'>('overview');
   const [historyOpen, setHistoryOpen] = useState(true);
   const [savedViewsOpen, setSavedViewsOpen] = useState(true);
   const [weatherOverlay, setWeatherOverlay] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery || '');
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -94,6 +95,42 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ onNavigate, onZoomIn, 
       setTimeout(() => setToast(null), 3000);
   };
 
+  // Auto-perform search if initial search query is provided (only on mount)
+  useEffect(() => {
+      if (initialSearchQuery && initialSearchQuery.trim() && !weather) {
+          const performInitialSearch = async () => {
+              const query = initialSearchQuery;
+              setLoading(true);
+              setShowSuggestions(false);
+              setSuggestions([]);
+
+                  try {
+                      const coords = await getCoordinates(query);
+                      if (coords) {
+                          const data = await fetchWeatherData(coords.lat, coords.lon);
+                          setWeather(data);
+                          setCurrentLocationName(data.city); // Use city name from response
+                          setSearchQuery(data.city);
+                          setCurrentCoords({ lat: coords.lat, lon: coords.lon });
+                          
+                          // Update History with city name
+                          setSearchHistory(prev => [{ name: data.city, time: 'Just now' }, ...prev.slice(0, 4)]);                      // Update Earth Position
+                      if (onLocationSelect) {
+                          onLocationSelect(coords.lat, coords.lon);
+                      }
+                  }
+              } catch (e) {
+                  console.error("Initial search failed", e);
+                  showToast("Location not found");
+              } finally {
+                  setLoading(false);
+              }
+          };
+          
+          performInitialSearch();
+      }
+  }, []); // Empty dependency array - run only on mount
+
   // --- Search Logic ---
 
   // Debounce Autocomplete
@@ -121,12 +158,12 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ onNavigate, onZoomIn, 
           if (coords) {
               const data = await fetchWeatherData(coords.lat, coords.lon);
               setWeather(data);
-              setCurrentLocationName(query);
-              setSearchQuery(query);
+              setCurrentLocationName(data.city); // Use city name from weather data
+              setSearchQuery(data.city);
               setCurrentCoords({ lat: coords.lat, lon: coords.lon });
               
-              // Update History
-              setSearchHistory(prev => [{ name: query, time: 'Just now' }, ...prev.slice(0, 4)]);
+              // Update History with city name, not raw coordinates
+              setSearchHistory(prev => [{ name: data.city, time: 'Just now' }, ...prev.slice(0, 4)]);
 
               // Update Earth Position
               if (onLocationSelect) {
@@ -389,7 +426,12 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ onNavigate, onZoomIn, 
 
                         {/* View Dashboard CTA */}
                         <button 
-                            onClick={() => onNavigate('dashboard')}
+                            onClick={() => {
+                                // Store coordinates for Dashboard and navigate
+                                sessionStorage.setItem('dashboardCoords', JSON.stringify(currentCoords));
+                                sessionStorage.setItem('dashboardLocation', currentLocationName);
+                                onNavigate('dashboard');
+                            }}
                             className="w-full py-4 rounded-xl bg-gradient-to-r from-[#00C2FF] to-[#0099CC] text-black font-bold shadow-[0_0_20px_rgba(0,194,255,0.4)] hover:shadow-[0_0_30px_rgba(0,194,255,0.6)] hover:scale-[1.02] transition-all flex items-center justify-center mb-6"
                         >
                             View Dashboard <ArrowRight className="w-5 h-5 ml-2" />

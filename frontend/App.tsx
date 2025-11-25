@@ -26,6 +26,7 @@ const App: React.FC = () => {
   const [isLocationActive, setIsLocationActive] = useState(false);
   const [markerPosition, setMarkerPosition] = useState<{ lat: number; lon: number } | null>(null);
   const [zoomLevel, setZoomLevel] = useState(2.5);
+  const [searchQuery, setSearchQuery] = useState<string | undefined>(undefined);
   
   // Auth State
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -33,13 +34,18 @@ const App: React.FC = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
 
-  const handleNavigate = (view: 'landing' | 'dashboard' | 'profile' | 'notifications' | 'alerts' | 'admin' | 'explore' | 'about') => {
+  const handleNavigate = (view: 'landing' | 'dashboard' | 'profile' | 'notifications' | 'alerts' | 'admin' | 'explore' | 'about', query?: string) => {
     setCurrentView(view);
+    // Store search query if provided and navigating to explore
+    if (view === 'explore' && query) {
+      setSearchQuery(query);
+    }
     // Reset location marker when going back to landing
     if (view === 'landing') {
       setIsLocationActive(false);
       setMarkerPosition(null);
       setZoomLevel(2.5);
+      setSearchQuery(undefined);
     }
   };
 
@@ -126,7 +132,7 @@ const App: React.FC = () => {
       
       <main className="flex-grow relative z-10 h-full">
         {currentView === 'landing' && (
-          <Hero onExplore={() => handleNavigate('explore')} />
+          <Hero onExplore={(query) => handleNavigate('explore', query)} />
         )}
         
         {currentView === 'dashboard' && (
@@ -146,6 +152,7 @@ const App: React.FC = () => {
 
         {currentView === 'explore' && (
           <ExplorePage 
+            searchQuery={searchQuery}
             onNavigate={handleNavigate}
             onZoomIn={handleZoomIn}
             onZoomOut={handleZoomOut}

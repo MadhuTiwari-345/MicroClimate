@@ -1,10 +1,10 @@
 
 import React, { useState } from 'react';
 import { Search, Crosshair, Globe } from 'lucide-react';
-import { getMicroclimateSnapshot } from '../services/geminiService';
+import { getMicroclimateSnapshot } from '../services/locationservice';
 
 interface HeroProps {
-  onExplore: () => void;
+  onExplore: (searchQuery?: string) => void;
 }
 
 export const Hero: React.FC<HeroProps> = ({ onExplore }) => {
@@ -16,26 +16,28 @@ export const Hero: React.FC<HeroProps> = ({ onExplore }) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
     
-    setLoading(true);
-    setSnapshot(null);
-    const result = await getMicroclimateSnapshot(searchQuery);
-    setSnapshot(result);
-    setLoading(false);
+    // Navigate to Explore with the search query
+    onExplore(searchQuery);
   };
 
   const handleUseLocation = () => {
     if ('geolocation' in navigator) {
+      setLoading(true);
       navigator.geolocation.getCurrentPosition(
         async (position) => {
-          setLoading(true);
-          const coords = `${position.coords.latitude}, ${position.coords.longitude}`;
+          const lat = position.coords.latitude.toFixed(4);
+          const lon = position.coords.longitude.toFixed(4);
+          const coords = `${lat}, ${lon}`;
           setSearchQuery(coords);
-          const result = await getMicroclimateSnapshot(`Coordinates: ${coords}`);
-          setSnapshot(result);
-          setLoading(false);
+          // Wait a moment to show the coords in search bar, then navigate to Explore
+          setTimeout(() => {
+            onExplore(coords);
+            setLoading(false);
+          }, 500);
         },
         (error) => {
           console.error("Error getting location", error);
+          setLoading(false);
           alert("Could not access your location. Please ensure permissions are granted.");
         }
       );
@@ -100,12 +102,7 @@ export const Hero: React.FC<HeroProps> = ({ onExplore }) => {
         </div>
 
         {/* Quick Result Display (Hidden if no search) */}
-        {snapshot && (
-          <div className="mt-10 p-6 bg-[#0B0E14]/80 backdrop-blur-xl border border-white/10 rounded-xl max-w-2xl w-full text-left animate-fade-in-up shadow-2xl z-20">
-            <h3 className="text-brand-accent text-sm font-semibold uppercase tracking-wider mb-2">Microclimate Snapshot</h3>
-            <p className="text-gray-200 leading-relaxed">{snapshot}</p>
-          </div>
-        )}
+        {/* Removed - Search now navigates to Explore page */}
 
       </div>
     </div>
