@@ -3,6 +3,7 @@ import requests
 from .risk_engine import calculate_risk_score
 from .anomaly_engine import detect_microclimate_anomalies
 from .prediction_module import predict_short_term as prophet_predict
+from .sector_database import find_nearest_sectors, get_sector_from_pincode, PINCODE_TO_SECTOR
 from typing import Optional
 
 router = APIRouter()
@@ -312,3 +313,164 @@ def forecast_by_coords(lat: float, lon: float):
     Returns weather in the frontend-friendly format by latitude and longitude.
     """
     return build_forecast_response(lat, lon)
+
+
+# SECTOR/AREA BASED ENDPOINTS
+
+@router.get("/nearest_sectors")
+def get_nearest_sectors(lat: float, lon: float, radius_km: float = 3.0):
+    """
+    Find all sectors/areas within a given radius (default 3km) from given coordinates.
+    Returns list of nearest sectors with their weather data.
+    """
+    try:
+        sectors = find_nearest_sectors(lat, lon, radius_km)
+        if not sectors:
+            return {
+                "lat": lat,
+                "lon": lon,
+                "radius_km": radius_km,
+                "message": "No sectors found within specified radius",
+                "sectors": []
+            }
+        
+        # Get weather for the nearest sector
+        nearest = sectors[0]
+        weather = build_forecast_response(nearest["lat"], nearest["lon"], nearest["area"])
+        
+        return {
+            "lat": lat,
+            "lon": lon,
+            "radius_km": radius_km,
+            "nearest_sector": nearest["area"],
+            "sectors": sectors,
+            "weather": weather
+        }
+    except Exception as e:
+        return {"error": str(e), "lat": lat, "lon": lon}
+
+
+@router.get("/sector_weather")
+def get_sector_weather(sector_name: str, city: str = "Noida"):
+    """
+    Get weather for a specific sector by name and city.
+    Example: /sector_weather?sector_name=Sector%2018&city=Noida
+    """
+    try:
+        from .sector_database import SECTOR_DATA
+        
+        # Search for sector in database
+        sector_key = f"{city.lower()}_{sector_name.lower().replace(' ', '_')}"
+        
+        # Try exact match first
+        if sector_key in SECTOR_DATA:
+            sector = SECTOR_DATA[sector_key]
+            weather = build_forecast_response(sector["lat"], sector["lon"], sector["area"])
+            return {
+                "sector": sector["area"],
+                "city": sector["city"],
+                "distance": 0,
+                "weather": weather
+            }
+        
+        # Try partial match
+        for key, sector_data in SECTOR_DATA.items():
+            if sector_name.lower() in sector_data["area"].lower() and city.lower() in sector_data["city"].lower():
+                weather = build_forecast_response(sector_data["lat"], sector_data["lon"], sector_data["area"])
+                return {
+                    "sector": sector_data["area"],
+                    "city": sector_data["city"],
+                    "distance": 0,
+                    "weather": weather
+                }
+        
+        return {"error": f"Sector {sector_name} not found in {city}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.get("/pincode_sector")
+def get_pincode_sector(pincode: str):
+    """
+    Get sector/area information and weather for a given pincode.
+    Example: /pincode_sector?pincode=201318
+    """
+    try:
+        # Look up pincode in our database
+        sector_info = get_sector_from_pincode(pincode)
+        
+        if not sector_info:
+            # Fallback to standard geocoding if pincode not in our database
+            url = f"http://api.openweathermap.org/geo/1.0/zip?zip={pincode},IN&appid={API_KEY}"
+            r = requests.get(url)
+            if r.status_code == 200:
+                data = r.json()
+                lat = data.get("lat")
+                lon = data.get("lon")
+                city = data.get("name", "Unknown")
+                
+                # Find nearest sectors
+                sectors = find_nearest_sectors(lat, lon, 3.0)
+                weather = build_forecast_response(lat, lon, city)
+                
+                return {
+                    "pincode": pincode,
+                    "city": city,
+                    "lat": lat,
+                    "lon": lon,
+                    "sectors_nearby": sectors,
+                    "weather": weather
+                }
+            else:
+                return {"error": f"Pincode {pincode} not found"}
+        
+        # Get weather for the sector from our database
+        weather = build_forecast_response(sector_info["lat"], sector_info["lon"], sector_info["area"])
+        
+        return {
+            "pincode": pincode,
+            "sector": sector_info["area"],
+            "city": sector_info["city"],
+            "lat": sector_info["lat"],
+            "lon": sector_info["lon"],
+            "weather": weather
+        }
+    except Exception as e:
+        return {"error": str(e), "pincode": pincode}
+
+
+@router.get("/all_sectors")
+def get_all_sectors(city: str = ""):
+    """
+    Get list of all sectors in the database.
+    Optionally filter by city.
+    Example: /all_sectors?city=Noida
+    """
+    try:
+        from .sector_database import SECTOR_DATA
+        
+        sectors = []
+        for key, sector_data in SECTOR_DATA.items():
+            if city and city.lower() not in sector_data["city"].lower():
+                continue
+            sectors.append({
+                "area": sector_data["area"],
+                "city": sector_data["city"],
+                "lat": sector_data["lat"],
+                "lon": sector_data["lon"]
+            })
+        
+        # Group by city
+        by_city = {}
+        for sector in sectors:
+            c = sector["city"]
+            if c not in by_city:
+                by_city[c] = []
+            by_city[c].append(sector)
+        
+        return {
+            "total": len(sectors),
+            "by_city": by_city
+        }
+    except Exception as e:
+        return {"error": str(e)}

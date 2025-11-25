@@ -12,7 +12,7 @@ export async function getLocationSuggestions(query: string) {
   }
 }
 
-export async function getCoordinates(location: string): Promise<{ lat: number; lon: number } | null> {
+export async function getCoordinates(location: string): Promise<{ lat: number; lon: number; sector?: string } | null> {
   try {
     // Check if location is in "lat, lon" format (from geolocation)
     const coordMatch = location.match(/^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$/);
@@ -20,6 +20,18 @@ export async function getCoordinates(location: string): Promise<{ lat: number; l
       const lat = parseFloat(coordMatch[1]);
       const lon = parseFloat(coordMatch[2]);
       if (!isNaN(lat) && !isNaN(lon)) {
+        // Try to find the nearest sector
+        try {
+          const sectorRes = await fetch(`${API_BASE}/weather/nearest_sectors?lat=${lat}&lon=${lon}&radius_km=3`);
+          if (sectorRes.ok) {
+            const sectorData = await sectorRes.json();
+            if (sectorData.nearest_sector) {
+              return { lat, lon, sector: sectorData.nearest_sector };
+            }
+          }
+        } catch (e) {
+          console.warn('Sector lookup failed', e);
+        }
         return { lat, lon };
       }
     }
@@ -27,13 +39,17 @@ export async function getCoordinates(location: string): Promise<{ lat: number; l
     // Check if input looks like a postal code / pincode (3-6 digits)
     const pincodeMatch = location.match(/^\d{3,6}$/);
     if (pincodeMatch) {
-      // Use backend geocode endpoint which resolves pincode -> lat/lon
       try {
-        const geoRes = await fetch(`${API_BASE}/geocode?pincode=${encodeURIComponent(location)}`);
+        // Use new pincode_sector endpoint which returns sector info
+        const geoRes = await fetch(`${API_BASE}/weather/pincode_sector?pincode=${encodeURIComponent(location)}`);
         if (geoRes.ok) {
           const g = await geoRes.json();
           if (g && g.lat != null && g.lon != null) {
-            return { lat: parseFloat(g.lat), lon: parseFloat(g.lon) };
+            return {
+              lat: parseFloat(g.lat),
+              lon: parseFloat(g.lon),
+              sector: g.sector || g.city
+            };
           }
         }
       } catch (e) {
@@ -46,7 +62,7 @@ export async function getCoordinates(location: string): Promise<{ lat: number; l
     if (!res.ok) throw new Error("Failed to fetch forecast");
 
     const data = await res.json();
-    return { lat: data.lat ?? 0, lon: data.lon ?? 0 };
+    return { lat: data.lat ?? 0, lon: data.lon ?? 0, sector: data.city };
   } catch (err) {
     console.error("getCoordinates failed:", err);
     return null;
@@ -80,11 +96,25 @@ export async function getCityFromCoordinates(lat: number, lon: number): Promise<
 
 export async function getReverseLocation(lat: number, lon: number): Promise<string> {
   /**
-   * Get the exact location name (address/place name) from coordinates.
-   * This performs a reverse geocode lookup using the backend's Nominatim integration.
+   * Get the exact location name (address/place name/sector name) from coordinates.
+   * First tries to find the nearest sector, then falls back to address/city reverse geocoding.
    */
   try {
-    // First, try to get exact location from forecast endpoint (includes city from reverse geocode)
+    // First, try to get nearest sector within 3km
+    const sectorRes = await fetch(`${API_BASE}/weather/nearest_sectors?lat=${lat}&lon=${lon}&radius_km=3`);
+    if (sectorRes.ok) {
+      const sectorData = await sectorRes.json();
+      if (sectorData.nearest_sector) {
+        const distance = sectorData.sectors?.[0]?.distance_km || 0;
+        return `${sectorData.nearest_sector} (${distance}km away)`;
+      }
+    }
+  } catch (err) {
+    console.warn("Sector lookup failed", err);
+  }
+  
+  try {
+    // Fallback to forecast endpoint which includes city from reverse geocode
     const res = await fetch(`${API_BASE}/weather/forecast_by_coords?lat=${lat}&lon=${lon}`);
     if (res.ok) {
       const data = await res.json();
@@ -96,7 +126,7 @@ export async function getReverseLocation(lat: number, lon: number): Promise<stri
     console.warn("Reverse location lookup failed", err);
   }
   
-  // Fallback to formatted coords
+  // Final fallback to formatted coords
   return `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
 }
 
@@ -223,4 +253,67 @@ export async function getClimateAnalysis(lat: number, lon: number) {
       rawPredictions: null
     };
   }
+}
+
+// NEW SECTOR-BASED FUNCTIONS
+
+/**
+ * Get all nearby sectors within a given radius from coordinates
+ */
+export async function getNearestSectors(lat: number, lon: number, radiusKm: number = 3.0) {
+  try {
+    const res = await fetch(`${API_BASE}/weather/nearest_sectors?lat=${lat}&lon=${lon}&radius_km=${radiusKm}`);
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.error("Error fetching nearest sectors:", err);
+  }
+  return null;
+}
+
+/**
+ * Get weather data for a specific sector by name and city
+ */
+export async function getSectorWeather(sectorName: string, city: string = "Noida") {
+  try {
+    const res = await fetch(`${API_BASE}/weather/sector_weather?sector_name=${encodeURIComponent(sectorName)}&city=${encodeURIComponent(city)}`);
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.error("Error fetching sector weather:", err);
+  }
+  return null;
+}
+
+/**
+ * Get sector information and weather from pincode
+ */
+export async function getSectorFromPincode(pincode: string) {
+  try {
+    const res = await fetch(`${API_BASE}/weather/pincode_sector?pincode=${encodeURIComponent(pincode)}`);
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.error("Error fetching sector from pincode:", err);
+  }
+  return null;
+}
+
+/**
+ * Get all sectors in the database, optionally filtered by city
+ */
+export async function getAllSectors(city: string = "") {
+  try {
+    const url = city ? `${API_BASE}/weather/all_sectors?city=${encodeURIComponent(city)}` : `${API_BASE}/weather/all_sectors`;
+    const res = await fetch(url);
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.error("Error fetching all sectors:", err);
+  }
+  return null;
 }
