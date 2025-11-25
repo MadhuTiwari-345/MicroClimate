@@ -6,7 +6,7 @@ import {
   Navigation, Snowflake, Tornado, Loader2, 
   Sun, Droplets, Wind, Activity, Layers, User, Check, EyeOff, Eye, MapPin
 } from 'lucide-react';
-import { getCoordinates, getCityFromCoordinates, getLocationSuggestions } from '../services/locationservice';
+import { getCoordinates, getCityFromCoordinates, getLocationSuggestions, getReverseLocation } from '../services/locationservice';
 import { fetchWeatherData, WeatherData } from '../services/weatherService';
 
 interface ExplorePageProps {
@@ -109,11 +109,21 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ searchQuery: initialSe
                       if (coords) {
                           const data = await fetchWeatherData(coords.lat, coords.lon);
                           setWeather(data);
-                          setCurrentLocationName(data.city); // Use city name from response
-                          setSearchQuery(data.city);
+                          
+                          // Check if initial query was lat,lon format
+                          const coordMatch = query.match(/^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$/);
+                          if (coordMatch) {
+                              // Get exact location for lat,lon
+                              const exactLocation = await getReverseLocation(coords.lat, coords.lon);
+                              setCurrentLocationName(exactLocation);
+                              setSearchQuery(`${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`);
+                          } else {
+                              setCurrentLocationName(data.city);
+                              setSearchQuery(data.city);
+                          }
                           setCurrentCoords({ lat: coords.lat, lon: coords.lon });
                           
-                          // Update History with city name
+                          // Update History
                           setSearchHistory(prev => [{ name: data.city, time: 'Just now' }, ...prev.slice(0, 4)]);                      // Update Earth Position
                       if (onLocationSelect) {
                           onLocationSelect(coords.lat, coords.lon);
@@ -158,12 +168,24 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ searchQuery: initialSe
           if (coords) {
               const data = await fetchWeatherData(coords.lat, coords.lon);
               setWeather(data);
-              setCurrentLocationName(data.city); // Use city name from weather data
-              setSearchQuery(data.city);
+              
+              // Check if the user provided coords (lat, lon)
+              const coordMatch = query.match(/^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$/);
+              if (coordMatch) {
+                  // User entered lat,lon: get exact location name via reverse geocode
+                  const exactLocation = await getReverseLocation(coords.lat, coords.lon);
+                  setCurrentLocationName(exactLocation);
+                  // Display "lat, lon" in search bar for clarity, but use exact location name elsewhere
+                  setSearchQuery(`${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`);
+              } else {
+                  // User entered city, pincode, or other text
+                  setCurrentLocationName(data.city);
+                  setSearchQuery(data.city);
+              }
               setCurrentCoords({ lat: coords.lat, lon: coords.lon });
               
-              // Update History with city name, not raw coordinates
-              setSearchHistory(prev => [{ name: data.city, time: 'Just now' }, ...prev.slice(0, 4)]);
+              // Update History with location name
+              setSearchHistory(prev => [{ name: currentLocationName || data.city, time: 'Just now' }, ...prev.slice(0, 4)]);
 
               // Update Earth Position
               if (onLocationSelect) {

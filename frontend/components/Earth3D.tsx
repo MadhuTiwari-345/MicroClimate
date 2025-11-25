@@ -7,6 +7,7 @@ interface Earth3DProps {
   markerPosition?: { lat: number; lon: number } | null;
   zoomLevel?: number;
   onLocationClick?: (lat: number, lon: number) => void;
+    reduceEffects?: boolean;
 }
 
 export const Earth3D: React.FC<Earth3DProps> = ({ 
@@ -15,6 +16,7 @@ export const Earth3D: React.FC<Earth3DProps> = ({
   markerPosition, 
   zoomLevel = 2.5,
   onLocationClick
+    , reduceEffects = false
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -123,9 +125,13 @@ export const Earth3D: React.FC<Earth3DProps> = ({
     }
 
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
+    // When running in reduced effects mode, lower pixel ratio to reduce GPU pressure
+    renderer.setPixelRatio(reduceEffects ? 1 : window.devicePixelRatio);
+    // Prevent the canvas from intercepting pointer events by default. Individual controls
+    // can enable pointer events when necessary.
+    try { renderer.domElement.style.pointerEvents = 'none'; } catch (e) {}
     renderer.domElement.style.cursor = 'grab';
-    
+
     mountRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
@@ -347,41 +353,51 @@ export const Earth3D: React.FC<Earth3DProps> = ({
     });
 
     let frameId = 0;
-    const animate = () => {
-      frameId = requestAnimationFrame(animate);
-      
-      if (rotationGroup && !isDragging) {
-          // Smoothly interpolate towards target rotation (e.g. when clicking a saved view)
-          // Or auto-rotate if no specific target
-          if (!showMarker) {
-              rotationGroup.rotation.y += 0.0005;
-              targetRotationRef.current.y = rotationGroup.rotation.y;
-          } else {
-              // Damping effect for smooth transition to location
-              rotationGroup.rotation.y += (targetRotationRef.current.y - rotationGroup.rotation.y) * 0.05;
-              rotationGroup.rotation.x += (targetRotationRef.current.x - rotationGroup.rotation.x) * 0.05;
-          }
-      }
-      
-      stars.rotation.y -= 0.0001;
+        const animate = () => {
+            frameId = requestAnimationFrame(animate);
+            try {
+                if (rotationGroup && !isDragging) {
+                    // Smoothly interpolate towards target rotation (e.g. when clicking a saved view)
+                    // Or auto-rotate if no specific target
+                    if (!showMarker) {
+                        rotationGroup.rotation.y += 0.0005;
+                        targetRotationRef.current.y = rotationGroup.rotation.y;
+                    } else {
+                        // Damping effect for smooth transition to location
+                        rotationGroup.rotation.y += (targetRotationRef.current.y - rotationGroup.rotation.y) * 0.05;
+                        rotationGroup.rotation.x += (targetRotationRef.current.x - rotationGroup.rotation.x) * 0.05;
+                    }
+                }
 
-      const scale = 1 + Math.sin(Date.now() * 0.003) * 0.3;
-      ring.scale.set(scale, scale, scale);
-      ringMat.opacity = 0.5 - Math.sin(Date.now() * 0.003) * 0.3;
+                if (!reduceEffects) {
+                    stars.rotation.y -= 0.0001;
 
-      // Smooth Horizontal Shift (Dashboard Mode)
-      if (earthGroup.userData.targetX !== undefined) {
-         earthGroup.position.x += (earthGroup.userData.targetX - earthGroup.position.x) * 0.05;
-      }
-      
-      // Smooth Zoom
-      if (Math.abs(camera.position.z - targetCameraZRef.current) > 0.001) {
-          camera.position.z += (targetCameraZRef.current - camera.position.z) * 0.05;
-      }
+                    const scale = 1 + Math.sin(Date.now() * 0.003) * 0.3;
+                    ring.scale.set(scale, scale, scale);
+                    ringMat.opacity = 0.5 - Math.sin(Date.now() * 0.003) * 0.3;
+                } else {
+                    // minimal visual updates in reduced mode
+                    stars.rotation.y -= 0.00002;
+                }
 
-      renderer.render(scene, camera);
-    };
-    animate();
+                // Smooth Horizontal Shift (Dashboard Mode)
+                if (earthGroup.userData.targetX !== undefined) {
+                    earthGroup.position.x += (earthGroup.userData.targetX - earthGroup.position.x) * 0.05;
+                }
+
+                // Smooth Zoom
+                if (Math.abs(camera.position.z - targetCameraZRef.current) > 0.001) {
+                    camera.position.z += (targetCameraZRef.current - camera.position.z) * 0.05;
+                }
+
+                renderer.render(scene, camera);
+            } catch (err) {
+                console.error('Earth3D render loop error:', err);
+                // stop further frames to avoid repeated errors
+                cancelAnimationFrame(frameId);
+            }
+        };
+        animate();
 
     const handleResize = () => {
         camera.aspect = window.innerWidth / window.innerHeight;
@@ -409,5 +425,5 @@ export const Earth3D: React.FC<Earth3DProps> = ({
     };
   }, [viewMode, showMarker, onLocationClick]); // zoomLevel removed from dependency array to prevent jitter, handled via ref
 
-  return <div ref={mountRef} className="fixed inset-0 z-0 bg-[#050505]" />;
+    return <div ref={mountRef} className="fixed inset-0 z-0 bg-[#050505] pointer-events-none" aria-hidden="true" />;
 };

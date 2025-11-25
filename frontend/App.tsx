@@ -111,6 +111,7 @@ const App: React.FC = () => {
             markerPosition={markerPosition}
             zoomLevel={zoomLevel}
             onLocationClick={handleEarthLocationClick}
+            reduceEffects={currentView === 'dashboard'}
         />
       )}
       
