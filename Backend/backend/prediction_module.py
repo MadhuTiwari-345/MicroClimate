@@ -4,7 +4,7 @@ import pandas as pd
 from prophet import Prophet
 from datetime import datetime, timedelta
 from typing import List, Dict
-from risk_engine import calculate_risk_score
+from .risk_engine import calculate_risk_score
 
 
 def _series_df(forecast_list: List[Dict], key: str):

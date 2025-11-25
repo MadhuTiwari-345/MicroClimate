@@ -44,6 +44,7 @@ const App: React.FC = () => {
 }, []);
 
 
+
   const handleNavigate = (view: 'landing' | 'dashboard' | 'profile' | 'notifications' | 'alerts' | 'admin' | 'explore' | 'about') => {
     setCurrentView(view);
     // Reset location marker when going back to landing
@@ -136,10 +137,18 @@ const App: React.FC = () => {
       )}
       
       <main className="flex-grow relative z-10 h-full">
-        {currentView === 'landing' && (
-          <Hero onExplore={() => handleNavigate('explore')} />
-        )}
-        
+     
+{currentView === 'landing' && (
+  <Hero
+    onExplore={() => handleNavigate('explore')}
+    onLocationSelect={(lat, lon) => {
+      handleLocationSelect(lat, lon);   // set marker in App
+      handleNavigate('explore');        // go to Explore page
+    }}
+  />
+)}
+
+
         {currentView === 'dashboard' && (
           <Dashboard 
             onNavigateHome={() => handleNavigate('landing')} 
@@ -161,6 +170,7 @@ const App: React.FC = () => {
             onZoomIn={handleZoomIn}
             onZoomOut={handleZoomOut}
             onLocationSelect={handleLocationSelect}
+             markerPosition={markerPosition}
           />
         )}
 

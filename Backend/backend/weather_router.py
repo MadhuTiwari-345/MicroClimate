@@ -1,8 +1,9 @@
 from fastapi import APIRouter, HTTPException
 import requests
-from risk_engine import calculate_risk_score
-from anomaly_engine import detect_microclimate_anomalies
-from prediction_module import predict_short_term as prophet_predict
+from .risk_engine import calculate_risk_score
+from .anomaly_engine import detect_microclimate_anomalies
+from .prediction_module import predict_short_term as prophet_predict
+from typing import Optional
 
 router = APIRouter()
 
@@ -158,3 +159,149 @@ def geocode(pincode: str, country: str = "IN"):
         "lat": data.get("lat"),
         "lon": data.get("lon")
     }
+@router.get("/forecast")
+def forecast(city: str):
+    """
+    Returns weather in the frontend-friendly format:
+    {
+      current: { temperature, humidity, windSpeed, windDirection, pressure, uvIndex, visibility, weatherCode, isDay },
+      aqi: number,
+      daily: [{ date, code, maxTemp, minTemp }],
+      hourly: [{ time, temperature, windSpeed }],
+      city: string
+    }
+    """
+    # 1) Resolve city -> lat,lon using OpenWeather geocoding
+    geocode_url = f"http://api.openweathermap.org/geo/1.0/direct?q={city}&limit=1&appid={API_KEY}"
+    g = requests.get(geocode_url)
+    if g.status_code != 200:
+        raise HTTPException(status_code=502, detail="Geocoding failed")
+    geodata = g.json()
+    if not geodata or len(geodata) == 0:
+        raise HTTPException(status_code=404, detail="City not found by geocoding")
+
+    lat = geodata[0].get("lat")
+    lon = geodata[0].get("lon")
+    resolved_name = geodata[0].get("name") or city
+
+    # 2) Call Open-Meteo forecast (current, hourly temperature & wind, daily)
+    # include visibility and relative humidity in hourly for possible future use
+    weather_url = (
+      f"https://api.open-meteo.com/v1/forecast?"
+      f"latitude={lat}&longitude={lon}"
+      f"&current_weather=true"
+      f"&hourly=temperature_2m,wind_speed_10m,visibility,relativehumidity_2m"
+      f"&daily=weather_code,temperature_2m_max,temperature_2m_min,uv_index_max,precipitation_sum,precipitation_probability_max"
+      f"&timezone=auto&forecast_days=8"
+    )
+    w = requests.get(weather_url)
+    if w.status_code != 200:
+        raise HTTPException(status_code=502, detail="Open-Meteo fetch failed")
+    wjson = w.json()
+
+    # 3) Call Open-Meteo Air Quality (returns us_aqi)
+    aqi = 0
+    try:
+        aqi_url = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={lat}&longitude={lon}&current=us_aqi"
+        aqi_res = requests.get(aqi_url)
+        if aqi_res.ok:
+            aqi_json = aqi_res.json()
+            aqi = int(aqi_json.get("current", {}).get("us_aqi", 0) or 0)
+    except Exception:
+        aqi = 0
+
+    # 4) Build `current` object
+    current_weather = wjson.get("current_weather", {})  # contains temperature and windspeed + winddirection, is_day not always present
+    # For humidity/pressure/uv/visibility we may fall back to daily/hourly arrays
+    # Pull from hourly arrays as fallback
+    hourly = wjson.get("hourly", {})
+    daily = wjson.get("daily", {})
+
+    # try to find the index of current time in hourly times
+    current_index = 0
+    try:
+        times = hourly.get("time", [])
+        if current_weather and "time" in current_weather and times:
+            # current_weather.time sometimes equals times item
+            if current_weather.get("time") in times:
+                current_index = times.index(current_weather.get("time"))
+            else:
+                current_index = 0
+    except Exception:
+        current_index = 0
+
+    # Build current fields with fallbacks
+    cur_temp = current_weather.get("temperature") if current_weather.get("temperature") is not None else (hourly.get("temperature_2m", [0])[current_index] if hourly.get("temperature_2m") else 0)
+    cur_wind = current_weather.get("windspeed") if current_weather.get("windspeed") is not None else (hourly.get("wind_speed_10m", [0])[current_index] if hourly.get("wind_speed_10m") else 0)
+    cur_wind_dir = current_weather.get("winddirection") if current_weather.get("winddirection") is not None else 0
+    cur_pressure = daily.get("pressure_msl", [None])[0] if daily.get("pressure_msl") else None
+    # Open-Meteo doesn't always provide pressure in these endpoints; fallback to 1013
+    cur_pressure = cur_pressure if cur_pressure is not None else 1013
+    cur_humidity = None
+    try:
+        cur_humidity = hourly.get("relativehumidity_2m", [None])[current_index]
+    except Exception:
+        cur_humidity = None
+    cur_visibility = None
+    try:
+        cur_visibility = hourly.get("visibility", [None])[current_index]
+    except Exception:
+        cur_visibility = None
+    cur_uv = daily.get("uv_index_max", [0])[0] if daily.get("uv_index_max") else 0
+    cur_code = daily.get("weather_code", [0])[0] if daily.get("weather_code") else (current_weather.get("weathercode") or 0)
+    cur_is_day = current_weather.get("is_day", 1)
+
+    current_obj = {
+        "temperature": float(cur_temp or 0),
+        "humidity": int(cur_humidity) if cur_humidity is not None else 0,
+        "windSpeed": float(cur_wind or 0),
+        "windDirection": float(cur_wind_dir or 0),
+        "pressure": float(cur_pressure),
+        "uvIndex": float(cur_uv or 0),
+        "visibility": float(cur_visibility or 0),
+        "weatherCode": int(cur_code or 0),
+        "isDay": int(cur_is_day or 1),
+    }
+
+    # 5) Build daily list (use length of daily.time)
+    processed_daily = []
+    daily_time = daily.get("time", [])
+    daily_max = daily.get("temperature_2m_max", [])
+    daily_min = daily.get("temperature_2m_min", [])
+    daily_code = daily.get("weather_code", [])
+
+    for i in range(len(daily_time)):
+        processed_daily.append({
+            "date": daily_time[i],
+            "code": int(daily_code[i]) if i < len(daily_code) else 0,
+            "maxTemp": float(daily_max[i]) if i < len(daily_max) else 0.0,
+            "minTemp": float(daily_min[i]) if i < len(daily_min) else 0.0
+        })
+
+    # 6) Build hourly list (include windSpeed)
+    processed_hourly = []
+    hourly_time = hourly.get("time", [])
+    hourly_temp = hourly.get("temperature_2m", [])
+    hourly_wind = hourly.get("wind_speed_10m", [])
+
+    # Safely iterate and include up to next 48 or available length
+    max_hours = min(len(hourly_time), len(hourly_temp))
+    for i in range(max_hours):
+        processed_hourly.append({
+            "time": hourly_time[i],
+            "temperature": float(hourly_temp[i]) if i < len(hourly_temp) else 0.0,
+            "windSpeed": float(hourly_wind[i]) if i < len(hourly_wind) else float(cur_wind or 0)
+        })
+
+    # 7) Final response
+    response = {
+        "city": resolved_name,
+        "lat": lat,
+        "lon": lon,
+        "current": current_obj,
+        "aqi": int(aqi or 0),
+        "daily": processed_daily,
+        "hourly": processed_hourly
+    }
+
+    return response

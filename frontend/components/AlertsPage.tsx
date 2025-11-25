@@ -7,7 +7,7 @@ import {
   Tornado, User, ExternalLink, Bookmark, Share2
 } from 'lucide-react';
 import { UserData } from '../App';
-import { getGlobalWeatherEvents, getClimateUpdates, getArticleDetails, generateClimateReport } from '../services/geminiService';
+import { getGlobalWeatherEvents, getClimateUpdates, getArticleDetails, generateClimateReport } from '../services/locationservice';
 
 interface AlertsPageProps {
   onNavigate: (view: 'landing' | 'dashboard' | 'profile' | 'notifications' | 'alerts' | 'explore') => void;
@@ -129,7 +129,7 @@ export const AlertsPage: React.FC<AlertsPageProps> = ({ onNavigate, onLocationSe
 
         const fetchNews = async () => {
             setLoadingNews(true);
-            const data = await getClimateUpdates(newsCategory === 'All' ? 'General Climate Science' : newsCategory);
+            const data = await getClimateUpdates();
             setArticles(data);
             setLoadingNews(false);
         };
@@ -144,7 +144,7 @@ export const AlertsPage: React.FC<AlertsPageProps> = ({ onNavigate, onLocationSe
               setLoadingArticle(true);
               setArticleContent('');
               // Check if content is already locally available (mock) or needs fetch
-              const content = await getArticleDetails(selectedArticle.title);
+              const content = await getArticleDetails();
               setArticleContent(content);
               setLoadingArticle(false);
           };
