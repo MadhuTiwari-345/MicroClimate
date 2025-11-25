@@ -1,6 +1,6 @@
 {
-  "name": "MicroClimate",
-  "description": "High-resolution climate data visualization platform.",
+  "name": "MicroClimate 2",
+  "description": "",
   "requestFramePermissions": [
     "geolocation"
   ]

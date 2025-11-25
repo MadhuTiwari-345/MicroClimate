@@ -9,27 +9,64 @@ const TutorialEarth: React.FC = () => {
   useEffect(() => {
     if (!mountRef.current) return;
 
+    // --- 1. Robust WebGL Context Creation Strategy ---
+    const canvas = document.createElement('canvas');
+    const contextAttributes: WebGLContextAttributes = { 
+        alpha: true, 
+        antialias: true,
+        powerPreference: 'default', 
+        failIfMajorPerformanceCaveat: false
+    };
+    
+    let context: WebGLRenderingContext | null = null;
+    
+    try {
+        context = canvas.getContext('webgl2', contextAttributes) as WebGLRenderingContext;
+    } catch (e) {}
+
+    if (!context) {
+        try {
+            context = (canvas.getContext('webgl', contextAttributes) || 
+                       canvas.getContext('experimental-webgl', contextAttributes)) as WebGLRenderingContext;
+        } catch (e) {}
+    }
+
+    if (!context) return; // WebGL not available
+
     // Setup dimensions
     const width = mountRef.current.clientWidth;
     const height = mountRef.current.clientHeight;
 
     // Scene & Camera
     const scene = new THREE.Scene();
-    // Use a wider FOV or position closer to get the "cropped" look if needed, 
-    // but standard perspective is usually fine.
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-    camera.position.z = 3.5; // Move back slightly to see more of the globe in the wide banner
+    camera.position.z = 3.5; 
 
-    // Renderer
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    // --- 2. Initialize Renderer ---
+    let renderer: THREE.WebGLRenderer;
+    try {
+        renderer = new THREE.WebGLRenderer({ 
+            canvas: canvas, 
+            context: context, 
+            alpha: true, 
+            antialias: true 
+        });
+    } catch (e) {
+        return;
+    }
+
     renderer.setSize(width, height);
-    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    
+    if (mountRef.current.firstChild) {
+        mountRef.current.removeChild(mountRef.current.firstChild);
+    }
     mountRef.current.appendChild(renderer.domElement);
 
     // Earth Mesh
     const textureLoader = new THREE.TextureLoader();
     const earthTexture = textureLoader.load('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg');
-    const geometry = new THREE.SphereGeometry(1.2, 64, 64); // Slightly larger sphere
+    const geometry = new THREE.SphereGeometry(1.2, 64, 64); 
     const material = new THREE.MeshPhongMaterial({
       map: earthTexture,
       specular: new THREE.Color(0x333333),
@@ -61,7 +98,7 @@ const TutorialEarth: React.FC = () => {
     let frameId: number;
     const animate = () => {
       frameId = requestAnimationFrame(animate);
-      earth.rotation.y += 0.002; // Slow rotation
+      earth.rotation.y += 0.002; 
       renderer.render(scene, camera);
     };
     animate();

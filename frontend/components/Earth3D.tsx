@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 
@@ -19,6 +18,10 @@ export const Earth3D: React.FC<Earth3DProps> = ({
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
+  
+  // Refs for tweening state
+  const targetRotationRef = useRef<{ x: number, y: number }>({ x: 0, y: 0 });
+  const targetCameraZRef = useRef<number>(zoomLevel);
   const earthGroupRef = useRef<THREE.Group | null>(null);
   const rotationGroupRef = useRef<THREE.Group | null>(null);
   const markerGroupRef = useRef<THREE.Group | null>(null);
@@ -26,11 +29,14 @@ export const Earth3D: React.FC<Earth3DProps> = ({
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const earthMeshRef = useRef<THREE.Mesh | null>(null);
 
+  // Sync Zoom Prop with Target
+  useEffect(() => {
+      targetCameraZRef.current = zoomLevel;
+  }, [zoomLevel]);
+
   // Handle Position shifts based on view mode
   useEffect(() => {
     if (earthGroupRef.current) {
-      // Shift Earth to the right in Dashboard/Explore mode to clear the sidebar
-      // Explore might need slightly different offset depending on sidebar width
       const targetX = (viewMode === 'dashboard' || viewMode === 'explore') ? 0.6 : 0; 
       earthGroupRef.current.userData.targetX = targetX;
     }
@@ -40,11 +46,12 @@ export const Earth3D: React.FC<Earth3DProps> = ({
     }
   }, [viewMode, showMarker]);
 
-  // Handle Marker Position Update
+  // Handle Marker Position Update & Rotation Target
   useEffect(() => {
     if (markerGroupRef.current && markerPosition) {
         const { lat, lon } = markerPosition;
         
+        // Calculate 3D position for the marker pin
         const r = 1.0; 
         const phi = (90 - lat) * (Math.PI / 180);
         const theta = (lon + 180) * (Math.PI / 180);
@@ -64,11 +71,35 @@ export const Earth3D: React.FC<Earth3DProps> = ({
              ring.position.set(x,y,z);
              ring.lookAt(new THREE.Vector3(0,0,0));
         }
+
+        // Calculate target rotation to face the marker
+        // We want the marker to be roughly front-center
+        // Longitude correction
+        const targetY = -((lon) * (Math.PI / 180)) - (Math.PI / 2);
+        // Latitude correction (optional tilt)
+        const targetX = (lat) * (Math.PI / 180) * 0.5; 
+
+        targetRotationRef.current = { x: targetX, y: targetY };
     }
   }, [markerPosition]);
 
   useEffect(() => {
     if (!mountRef.current) return;
+
+    // 1. Robust WebGL Check
+    const canvas = document.createElement('canvas');
+    const contextAttributes = { alpha: true, antialias: true, powerPreference: 'high-performance' };
+    let context: any = null;
+
+    try {
+        context = canvas.getContext('webgl2', contextAttributes) || 
+                  canvas.getContext('webgl', contextAttributes) || 
+                  canvas.getContext('experimental-webgl', contextAttributes);
+    } catch (e) {
+        return;
+    }
+
+    if (!context) return;
 
     // Scene Setup
     const scene = new THREE.Scene();
@@ -78,26 +109,35 @@ export const Earth3D: React.FC<Earth3DProps> = ({
     camera.position.z = zoomLevel; 
     cameraRef.current = camera;
     
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    // Initialize Renderer
+    let renderer: THREE.WebGLRenderer;
+    try {
+        renderer = new THREE.WebGLRenderer({ 
+            canvas: canvas, 
+            context: context,
+            alpha: true, 
+            antialias: true 
+        });
+    } catch (error) {
+        return; 
+    }
+
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
-    
-    // Add cursor style for interactivity
     renderer.domElement.style.cursor = 'grab';
     
     mountRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
     // Groups
-    // earthGroup handles Position (Dashboard Shift)
     const earthGroup = new THREE.Group();
     earthGroup.userData = { targetX: 0 }; 
     scene.add(earthGroup);
     earthGroupRef.current = earthGroup;
 
-    // rotationGroup handles Rotation (Spin + Tilt + User Drag)
     const rotationGroup = new THREE.Group();
-    rotationGroup.rotation.z = 10 * Math.PI / 180; // Initial Tilt
+    // Initialize rotation
+    rotationGroup.rotation.y = 4.5; 
     earthGroup.add(rotationGroup);
     rotationGroupRef.current = rotationGroup;
 
@@ -132,7 +172,7 @@ export const Earth3D: React.FC<Earth3DProps> = ({
     const atmosphere = new THREE.Mesh(atmosphereGeo, atmosphereMat);
     rotationGroup.add(atmosphere);
 
-    // --- Marker Group (Inside Rotation Group so it spins with earth) ---
+    // --- Marker Group ---
     const markerGroup = new THREE.Group();
     markerGroup.visible = (viewMode === 'dashboard' || viewMode === 'explore') && showMarker;
     rotationGroup.add(markerGroup);
@@ -163,9 +203,9 @@ export const Earth3D: React.FC<Earth3DProps> = ({
         depthWrite: false,
     });
     
-    const canvas = document.createElement('canvas');
-    canvas.width = 64; canvas.height = 64;
-    const ctx = canvas.getContext('2d');
+    const canvasTex = document.createElement('canvas');
+    canvasTex.width = 64; canvasTex.height = 64;
+    const ctx = canvasTex.getContext('2d');
     if(ctx) {
         const g = ctx.createRadialGradient(32,32,0,32,32,32);
         g.addColorStop(0, 'rgba(255,0,68,1)');
@@ -173,7 +213,7 @@ export const Earth3D: React.FC<Earth3DProps> = ({
         ctx.fillStyle = g;
         ctx.fillRect(0,0,64,64);
     }
-    glowMat.map = new THREE.CanvasTexture(canvas);
+    glowMat.map = new THREE.CanvasTexture(canvasTex);
     
     const glow = new THREE.Mesh(glowGeo, glowMat);
     glow.rotateX(-Math.PI/2); 
@@ -211,7 +251,7 @@ export const Earth3D: React.FC<Earth3DProps> = ({
     const stars = new THREE.Points(starGeo, starMat);
     scene.add(stars);
 
-    // --- Interaction (Drag to Rotate) ---
+    // Interaction
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
     let isDragging = false;
@@ -219,7 +259,7 @@ export const Earth3D: React.FC<Earth3DProps> = ({
     let previousMousePosition = { x: 0, y: 0 };
 
     const onPointerDown = (e: PointerEvent) => {
-        if (e.button !== 0) return; // Left click only
+        if (e.button !== 0) return;
         isDragging = true;
         isClick = true;
         previousMousePosition = { x: e.clientX, y: e.clientY };
@@ -240,13 +280,14 @@ export const Earth3D: React.FC<Earth3DProps> = ({
 
         if (rotationGroupRef.current) {
             const rotationSpeed = 0.005;
-            // Rotate Y (horizontal drag)
             rotationGroupRef.current.rotation.y += deltaMove.x * rotationSpeed;
+            // Update target ref to match manual drag so it doesn't snap back
+            targetRotationRef.current.y = rotationGroupRef.current.rotation.y;
             
-            // Rotate X (vertical drag) - CLAMPED to prevent flipping
             const newX = rotationGroupRef.current.rotation.x + deltaMove.y * rotationSpeed;
-            const limit = Math.PI / 3; // 60 degrees
+            const limit = Math.PI / 3; 
             rotationGroupRef.current.rotation.x = Math.max(-limit, Math.min(limit, newX));
+            targetRotationRef.current.x = rotationGroupRef.current.rotation.x;
         }
 
         previousMousePosition = { x: e.clientX, y: e.clientY };
@@ -271,7 +312,6 @@ export const Earth3D: React.FC<Earth3DProps> = ({
 
         if (intersects.length > 0) {
             const point = intersects[0].point;
-            // Convert world point to local point relative to earth mesh
             const localPoint = earthMeshRef.current.worldToLocal(point.clone());
             localPoint.normalize();
             
@@ -288,13 +328,12 @@ export const Earth3D: React.FC<Earth3DProps> = ({
         }
     };
 
-    // Zoom via Wheel
     const onWheel = (e: WheelEvent) => {
         if (cameraRef.current) {
             const zoomSpeed = 0.001;
             const newZ = cameraRef.current.position.z + e.deltaY * zoomSpeed;
-            // Clamp zoom
-            cameraRef.current.position.z = Math.max(1.2, Math.min(5.0, newZ));
+            const clampedZ = Math.max(1.2, Math.min(5.0, newZ));
+            targetCameraZRef.current = clampedZ;
         }
     };
 
@@ -307,14 +346,21 @@ export const Earth3D: React.FC<Earth3DProps> = ({
         if(rendererRef.current) rendererRef.current.domElement.style.cursor = 'grab';
     });
 
-    // Animation
     let frameId = 0;
     const animate = () => {
       frameId = requestAnimationFrame(animate);
       
-      // Auto-rotate if not dragging (slow spin)
       if (rotationGroup && !isDragging) {
-          rotationGroup.rotation.y += 0.0005;
+          // Smoothly interpolate towards target rotation (e.g. when clicking a saved view)
+          // Or auto-rotate if no specific target
+          if (!showMarker) {
+              rotationGroup.rotation.y += 0.0005;
+              targetRotationRef.current.y = rotationGroup.rotation.y;
+          } else {
+              // Damping effect for smooth transition to location
+              rotationGroup.rotation.y += (targetRotationRef.current.y - rotationGroup.rotation.y) * 0.05;
+              rotationGroup.rotation.x += (targetRotationRef.current.x - rotationGroup.rotation.x) * 0.05;
+          }
       }
       
       stars.rotation.y -= 0.0001;
@@ -323,12 +369,14 @@ export const Earth3D: React.FC<Earth3DProps> = ({
       ring.scale.set(scale, scale, scale);
       ringMat.opacity = 0.5 - Math.sin(Date.now() * 0.003) * 0.3;
 
+      // Smooth Horizontal Shift (Dashboard Mode)
       if (earthGroup.userData.targetX !== undefined) {
          earthGroup.position.x += (earthGroup.userData.targetX - earthGroup.position.x) * 0.05;
       }
       
-      if (Math.abs(camera.position.z - zoomLevel) > 0.01) {
-          camera.position.z += (zoomLevel - camera.position.z) * 0.05;
+      // Smooth Zoom
+      if (Math.abs(camera.position.z - targetCameraZRef.current) > 0.001) {
+          camera.position.z += (targetCameraZRef.current - camera.position.z) * 0.05;
       }
 
       renderer.render(scene, camera);
@@ -350,6 +398,7 @@ export const Earth3D: React.FC<Earth3DProps> = ({
           rendererRef.current.domElement.removeEventListener('pointerup', onPointerUp);
           rendererRef.current.domElement.removeEventListener('wheel', onWheel);
           rendererRef.current.domElement.removeEventListener('pointerleave', () => {});
+          rendererRef.current.dispose();
       }
       cancelAnimationFrame(frameId);
       if(mountRef.current && renderer.domElement) {
@@ -357,9 +406,8 @@ export const Earth3D: React.FC<Earth3DProps> = ({
       }
       geometry.dispose();
       material.dispose();
-      renderer.dispose();
     };
-  }, [viewMode, showMarker, zoomLevel, onLocationClick]);
+  }, [viewMode, showMarker, onLocationClick]); // zoomLevel removed from dependency array to prevent jitter, handled via ref
 
   return <div ref={mountRef} className="fixed inset-0 z-0 bg-[#050505]" />;
 };

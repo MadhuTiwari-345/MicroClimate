@@ -25,10 +25,11 @@
               }
             },
             animation: {
-              'fade-in': 'fadeIn 0.3s ease-in-out',
-              'slide-up': 'slideUp 0.4s ease-out',
-              'scale-in': 'scaleIn 0.2s ease-out',
+              'fade-in': 'fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+              'slide-up': 'slideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+              'scale-in': 'scaleIn 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
               'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'draw-line': 'drawLine 1.5s ease-out forwards',
             },
             keyframes: {
               fadeIn: {
@@ -42,6 +43,10 @@
               scaleIn: {
                 '0%': { transform: 'scale(0.95)', opacity: '0' },
                 '100%': { transform: 'scale(1)', opacity: '1' },
+              },
+              drawLine: {
+                '0%': { strokeDasharray: '1000', strokeDashoffset: '1000' },
+                '100%': { strokeDasharray: '1000', strokeDashoffset: '0' },
               }
             }
           },
@@ -55,17 +60,17 @@
       }
       /* Custom scrollbar for webkit */
       ::-webkit-scrollbar {
-        width: 8px;
+        width: 6px;
       }
       ::-webkit-scrollbar-track {
         background: #0B0E14; 
       }
       ::-webkit-scrollbar-thumb {
         background: #1E2330; 
-        border-radius: 4px;
+        border-radius: 10px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #334155; 
+        background: #00C2FF; 
       }
     </style>
   <script type="importmap">
