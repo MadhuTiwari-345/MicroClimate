@@ -17,7 +17,7 @@ MicroClimate is an AI-powered platform that tracks weather and climate condition
 **Frontend:** React + Vite for UI, Three.js + React-Three-Fiber for 3D visuals  
 **Backend:** FastAPI serves API endpoints, ML models (time-series forecasting + anomaly detection)  
 **Data Sources:** OpenWeather API, Nominatim Geo-API  
-**Storage:** MySQL database  
+**Storage:** SQLITE database  
 **Deployment Stack:** Python backend, Node/React frontend  
 
 ## 🛠 Installation & Setup  
