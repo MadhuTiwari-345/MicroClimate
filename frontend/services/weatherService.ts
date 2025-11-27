@@ -1,6 +1,8 @@
 import { fetchForecastByCity, ForecastResponse } from './api';
 import { getCityFromCoordinates } from './locationservice';
 
+const API_BASE_URL = import.meta.env.DEV ? "http://127.0.0.1:8000" : "";
+
 export interface WeatherData {
   city: string;
   lat: number;
@@ -33,7 +35,7 @@ export interface WeatherData {
 export const fetchWeatherData = async (lat: number, lon: number): Promise<WeatherData | null> => {
   try {
     // Fetch weather directly from backend using lat/lon endpoint
-    const response = await fetch(`http://127.0.0.1:8000/weather/forecast_by_coords?lat=${lat}&lon=${lon}`);
+    const response = await fetch(`${API_BASE_URL}/weather/forecast_by_coords?lat=${lat}&lon=${lon}`);
     
     if (!response.ok) {
       console.error("Weather API failed:", response.statusText);

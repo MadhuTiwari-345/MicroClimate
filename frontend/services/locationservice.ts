@@ -1,4 +1,4 @@
-const API_BASE = "http://127.0.0.1:8000";
+const API_BASE = import.meta.env.DEV ? "http://127.0.0.1:8000" : "";
 // Toggle fetching of anomaly/prediction analytics. Set to false to avoid crashes
 const ENABLE_ANALYTICS = false;
 
