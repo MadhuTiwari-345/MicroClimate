@@ -1,6 +1,6 @@
 const API_BASE = import.meta.env.DEV ? "http://127.0.0.1:8000" : "";
 // Toggle fetching of anomaly/prediction analytics. Set to false to avoid crashes
-const ENABLE_ANALYTICS = false;
+const ENABLE_ANALYTICS = true;
 
 export async function getLocationSuggestions(query: string) {
   try {
@@ -40,8 +40,10 @@ export async function getCoordinates(location: string): Promise<{ lat: number; l
     const pincodeMatch = location.match(/^\d{3,6}$/);
     if (pincodeMatch) {
       try {
+        // Detect likely country: treat 5-digit codes as US zip by default
+        const country = location.length === 5 ? 'US' : 'IN';
         // Use new pincode_sector endpoint which returns sector info
-        const geoRes = await fetch(`${API_BASE}/weather/pincode_sector?pincode=${encodeURIComponent(location)}`);
+        const geoRes = await fetch(`${API_BASE}/weather/pincode_sector?pincode=${encodeURIComponent(location)}&country=${encodeURIComponent(country)}`);
         if (geoRes.ok) {
           const g = await geoRes.json();
           if (g && g.lat != null && g.lon != null) {
@@ -232,7 +234,18 @@ export async function getClimateAnalysis(lat: number, lon: number) {
 
     if (anomalyRes.ok) {
       const anomalyData = await anomalyRes.json();
-      anomalyReport = anomalyData.anomaly_report || "No anomalies detected";
+      const report = anomalyData.anomaly_report;
+      if (report) {
+        // Format anomaly report nicely
+        if (typeof report === 'object') {
+          const status = report.status || 'UNKNOWN';
+          const score = report.anomaly_score || 0;
+          const reasons = (report.reasons || []).join(', ') || 'None detected';
+          anomalyReport = `Status: ${status} | Score: ${score}/100 | Reasons: ${reasons}`;
+        } else {
+          anomalyReport = String(report);
+        }
+      }
     }
 
     if (predictionRes.ok) {
@@ -240,9 +253,23 @@ export async function getClimateAnalysis(lat: number, lon: number) {
       predictionData = predData.predictions || null;
     }
 
+    // Format prediction nicely
+    let predictionText = "Prediction model processing...";
+    if (predictionData) {
+      if (Array.isArray(predictionData)) {
+        predictionText = predictionData.map(p => 
+          `${p.time}: ${Math.round(p.temp)}°C, ${p.status}`
+        ).join('\n');
+      } else if (predictionData.predictions) {
+        predictionText = predictionData.predictions.map((p: any) => 
+          `${p.time}: ${Math.round(p.temp)}°C, ${p.status}`
+        ).join('\n');
+      }
+    }
+
     return {
       anomaly: anomalyReport,
-      prediction: predictionData ? JSON.stringify(predictionData, null, 2) : "Prediction model processing...",
+      prediction: predictionText,
       rawPredictions: predictionData
     };
   } catch (error) {

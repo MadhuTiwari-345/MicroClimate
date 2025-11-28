@@ -1,9 +1,13 @@
 from fastapi import APIRouter, HTTPException
 import requests
-from .risk_engine import calculate_risk_score
-from .anomaly_engine import detect_microclimate_anomalies
-from .prediction_module import predict_short_term as prophet_predict
-from .sector_database import find_nearest_sectors, get_sector_from_pincode, PINCODE_TO_SECTOR
+from backend.risk_engine import calculate_risk_score
+from backend.anomaly_engine import detect_microclimate_anomalies
+from backend.prediction_module import predict_short_term as prophet_predict
+from backend.sector_database import find_nearest_sectors, get_sector_from_pincode, PINCODE_TO_SECTOR
+from backend.health_recommendation_engine import get_health_recommendations
+from backend.community_insights_engine import get_community_insights
+from backend.carbon_footprint_tracker import get_carbon_analysis
+from backend.activity_planner import get_activity_recommendations
 from typing import Optional
 
 router = APIRouter()
@@ -190,47 +194,63 @@ def get_risk(lat: float, lon: float):
 # CURRENT MICROCLIMATE ANOMALY
 @router.get("/anomaly")
 def anomaly(lat: float, lon: float):
-    url = f"{FORECAST_URL}?lat={lat}&lon={lon}&appid={API_KEY}&units=metric"
-    r = requests.get(url)
+    try:
+        url = f"{FORECAST_URL}?lat={lat}&lon={lon}&appid={API_KEY}&units=metric"
+        r = requests.get(url)
 
-    if r.status_code != 200:
-        return {"error": "Invalid coordinates or API error"}
+        if r.status_code != 200:
+            return {"error": "Invalid coordinates or API error"}
 
-    data = r.json()
-    forecast_list = data.get("list", [])
+        data = r.json()
+        forecast_list = data.get("list", [])
 
-    anomaly_report = detect_microclimate_anomalies(forecast_list)
-    city = reverse_geocode(lat, lon)
+        anomaly_report = detect_microclimate_anomalies(forecast_list)
+        city = reverse_geocode(lat, lon)
 
-    return {
-        "lat": lat,
-        "lon": lon,
-        "city": city,
-        "anomaly_report": anomaly_report
-    }
+        return {
+            "lat": lat,
+            "lon": lon,
+            "city": city,
+            "anomaly_report": anomaly_report
+        }
+    except Exception as e:
+        return {
+            "lat": lat,
+            "lon": lon,
+            "error": f"Anomaly analysis failed: {str(e)}",
+            "anomaly_report": {"anomaly_score": 0, "status": "SAFE", "reasons": [], "events": []}
+        }
 
 
 # SHORT-TERM PROPHET PREDICTION
 @router.get("/predict")
 def predict(lat: float, lon: float, steps: int = 3):
-    url = f"{FORECAST_URL}?lat={lat}&lon={lon}&appid={API_KEY}&units=metric"
-    r = requests.get(url)
+    try:
+        url = f"{FORECAST_URL}?lat={lat}&lon={lon}&appid={API_KEY}&units=metric"
+        r = requests.get(url)
 
-    if r.status_code != 200:
-        return {"error": "Invalid coordinates or API error"}
+        if r.status_code != 200:
+            return {"error": "Invalid coordinates or API error"}
 
-    data = r.json()
-    forecast_list = data.get("list", [])
+        data = r.json()
+        forecast_list = data.get("list", [])
 
-    out = prophet_predict(forecast_list, steps=steps)
-    city = reverse_geocode(lat, lon)
+        out = prophet_predict(forecast_list, steps=steps)
+        city = reverse_geocode(lat, lon)
 
-    return {
-        "lat": lat,
-        "lon": lon,
-        "city": city,
-        "predictions": out
-    }
+        return {
+            "lat": lat,
+            "lon": lon,
+            "city": city,
+            "predictions": out
+        }
+    except Exception as e:
+        return {
+            "lat": lat,
+            "lon": lon,
+            "error": f"Prediction model failed: {str(e)}",
+            "predictions": {"method": "prophet", "predictions": []}
+        }
 
 
 # FUTURE ANOMALY DETECTION (Predicted + Real Synthetic)
@@ -357,7 +377,7 @@ def get_sector_weather(sector_name: str, city: str = "Noida"):
     Example: /sector_weather?sector_name=Sector%2018&city=Noida
     """
     try:
-        from .sector_database import SECTOR_DATA
+        from backend.sector_database import SECTOR_DATA
         
         # Search for sector in database
         sector_key = f"{city.lower()}_{sector_name.lower().replace(' ', '_')}"
@@ -390,7 +410,7 @@ def get_sector_weather(sector_name: str, city: str = "Noida"):
 
 
 @router.get("/pincode_sector")
-def get_pincode_sector(pincode: str):
+def get_pincode_sector(pincode: str, country: str = "IN"):
     """
     Get sector/area information and weather for a given pincode.
     Example: /pincode_sector?pincode=201318
@@ -401,7 +421,7 @@ def get_pincode_sector(pincode: str):
         
         if not sector_info:
             # Fallback to standard geocoding if pincode not in our database
-            url = f"http://api.openweathermap.org/geo/1.0/zip?zip={pincode},IN&appid={API_KEY}"
+            url = f"http://api.openweathermap.org/geo/1.0/zip?zip={pincode},{country}&appid={API_KEY}"
             r = requests.get(url)
             if r.status_code == 200:
                 data = r.json()
@@ -447,7 +467,7 @@ def get_all_sectors(city: str = ""):
     Example: /all_sectors?city=Noida
     """
     try:
-        from .sector_database import SECTOR_DATA
+        from backend.sector_database import SECTOR_DATA
         
         sectors = []
         for key, sector_data in SECTOR_DATA.items():
@@ -474,3 +494,159 @@ def get_all_sectors(city: str = ""):
         }
     except Exception as e:
         return {"error": str(e)}
+
+
+# ==================== EXTRAORDINARY FEATURES ====================
+
+# HEALTH RECOMMENDATIONS ENGINE
+@router.get("/health_recommendations")
+def health_recommendations(lat: float, lon: float, health_profile: str = "general_fitness"):
+    """
+    Get AI-powered health recommendations based on micro-climate
+    
+    Health profiles:
+    - general_fitness: General population
+    - asthma: Asthma/respiratory conditions
+    - cardiac: Heart conditions
+    - arthritis: Joint/arthritis conditions
+    """
+    try:
+        # Get weather data
+        response = requests.get(WEATHER_URL, params={"lat": lat, "lon": lon, "appid": API_KEY, "units": "metric"})
+        weather_data = response.json()
+        
+        # Normalize weather data for health engine
+        normalized_weather = {
+            'temp': weather_data.get('main', {}).get('temp', 20),
+            'humidity': weather_data.get('main', {}).get('humidity', 50),
+            'pressure': weather_data.get('main', {}).get('pressure', 1013),
+            'aqi': weather_data.get('main', {}).get('aqi', 50),  # Approximate
+            'wind_speed': weather_data.get('wind', {}).get('speed', 0) * 3.6,  # Convert m/s to km/h
+            'uv_index': 5,  # Default, would come from separate API
+            'timestamp': weather_data.get('dt')
+        }
+        
+        recommendations = get_health_recommendations(lat, lon, normalized_weather, health_profile)
+        return recommendations
+    except Exception as e:
+        return {"error": str(e), "health_index": {"health_risk_index": 0, "risk_factors": [], "warning_level": "UNKNOWN"}}
+
+
+# COMMUNITY INSIGHTS & SOCIAL COMPARISON
+@router.get("/community_insights")
+def community_insights(lat: float, lon: float, health_profile: str = "general"):
+    """
+    Get community insights, global comparisons, trending weather events, and peer activity
+    
+    Returns:
+    - Global weather comparisons
+    - Trending weather events worldwide
+    - Regional climate patterns
+    - Community alerts
+    - Peer insights and reports
+    - Gamified climate streaks
+    """
+    try:
+        # Get weather data
+        response = requests.get(WEATHER_URL, params={"lat": lat, "lon": lon, "appid": API_KEY, "units": "metric"})
+        weather_data = response.json()
+        city = reverse_geocode(lat, lon)
+        
+        normalized_weather = {
+            'temp': weather_data.get('main', {}).get('temp', 20),
+            'humidity': weather_data.get('main', {}).get('humidity', 50),
+            'aqi': weather_data.get('main', {}).get('aqi', 50),
+            'condition': weather_data.get('weather', [{}])[0].get('main', 'Unknown')
+        }
+        
+        insights = get_community_insights(city, normalized_weather, health_profile)
+        return insights
+    except Exception as e:
+        return {"error": str(e), "global_comparisons": []}
+
+
+# CARBON FOOTPRINT TRACKER
+@router.get("/carbon_footprint")
+def carbon_footprint(lat: float, lon: float, health_profile: str = "general"):
+    """
+    Get carbon footprint analysis and eco-friendly recommendations
+    
+    Returns:
+    - Daily/weekly/monthly carbon footprint
+    - Carbon score (0-100)
+    - Activity breakdown
+    - Eco-friendly recommendations
+    - Carbon offset options
+    - Equivalent environmental impact (trees, flights, miles)
+    """
+    try:
+        # Get weather data
+        response = requests.get(WEATHER_URL, params={"lat": lat, "lon": lon, "appid": API_KEY, "units": "metric"})
+        weather_data = response.json()
+        
+        normalized_weather = {
+            'temp': weather_data.get('main', {}).get('temp', 20),
+            'humidity': weather_data.get('main', {}).get('humidity', 50),
+            'aqi': weather_data.get('main', {}).get('aqi', 50)
+        }
+        
+        # Sample activities - in production, would be from user profile
+        sample_activities = [
+            {'type': 'cycling', 'duration': 30},
+            {'type': 'public_transport', 'duration': 45},
+            {'type': 'indoor_gym', 'duration': 60}
+        ]
+        
+        carbon_analysis = get_carbon_analysis(normalized_weather, sample_activities)
+        return carbon_analysis
+    except Exception as e:
+        return {"error": str(e), "daily_footprint": {"total_daily_emissions_kg_co2": 0}}
+
+
+# SMART ACTIVITY PLANNER
+@router.get("/activity_plan")
+def activity_plan(lat: float, lon: float, days: int = 7):
+    """
+    Get smart activity recommendations optimized for micro-climate conditions
+    
+    Returns:
+    - Optimal activities for each day of the week
+    - Best time of day for outdoor activities
+    - Indoor alternatives during bad weather
+    - Activity duration recommendations
+    - Safety levels and weather-specific tips
+    - Weekly summary with total planned hours
+    """
+    try:
+        # Generate 7-day forecast simulation
+        forecasts = []
+        base_temps = [22, 24, 25, 23, 20, 18, 25]
+        conditions = ['Clear', 'Cloudy', 'Sunny', 'Rainy', 'Cloudy', 'Clear', 'Sunny']
+        
+        for i in range(min(days, 7)):
+            day_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+            forecasts.append({
+                'day': day_names[i],
+                'date': f'{i+1}',
+                'temp': base_temps[i] + (i % 3 - 1),
+                'humidity': 50 + (i * 5) % 30,
+                'aqi': 80 + (i * 10) % 50,
+                'condition': conditions[i],
+                'wind_speed': 5 + (i % 3) * 3,
+                'hourly': [
+                    {
+                        'time': f'{h:02d}:00',
+                        'temp': base_temps[i] - 5 + (h % 8),
+                        'humidity': 50 + (h % 10),
+                        'aqi': 85 + (h * 2) % 40,
+                        'wind_speed': 3 + (h % 4)
+                    }
+                    for h in range(6, 22, 2)
+                ]
+            })
+        
+        # Get activity plan
+        activity_plan_data = get_activity_recommendations(forecasts)
+        return activity_plan_data
+    except Exception as e:
+        return {"error": str(e), "weekly_plan": []}

@@ -9,6 +9,11 @@ import {
 } from 'lucide-react';
 import { getLocationSuggestions, getCoordinates, getCityFromCoordinates, getClimateAnalysis } from '../services/locationservice';
 import { fetchWeatherData, WeatherData, getWeatherIconType, getWeatherLabel } from '../services/weatherService';
+import { PredictionGraph } from './PredictionGraph';
+import { HealthRecommendations } from './HealthRecommendations';
+import { CommunityInsights } from './CommunityInsights';
+import { CarbonFootprintTracker } from './CarbonFootprintTracker';
+import { ActivityPlanner } from './ActivityPlanner';
 
 interface DashboardProps {
   onNavigateHome: () => void;
@@ -53,7 +58,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
   
   const [locationAccuracy, setLocationAccuracy] = useState<number | null>(null);
   const [currentCoords, setCurrentCoords] = useState<{lat: number, lon: number}>({ lat: 0, lon: 0 });
-  const [climateAnalysis, setClimateAnalysis] = useState<{ anomaly: string, prediction: string } | null>(null);
+  const [climateAnalysis, setClimateAnalysis] = useState<{ anomaly: string, prediction: string, rawPredictions: any } | null>(null);
   
   const [tempUnit, setTempUnit] = useState<'C' | 'F'>(() => {
       const saved = localStorage.getItem('tempUnit');
@@ -331,6 +336,10 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
 
   const activeAlert = getAlert();
   const safety = calculateSafetyScore();
+
+  // Defensive lists to avoid runtime crashes when backend omits daily/hourly
+  const dailyList = weather?.daily ?? [];
+  const hourlyList = weather?.hourly ?? [];
 
   return (
     <div className="absolute inset-0 w-full h-screen text-white overflow-hidden font-sans selection:bg-[#00C2FF] selection:text-black animate-fade-in z-20 pointer-events-auto">
@@ -688,7 +697,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
               </div>
           ) : (
               <div className="space-y-2">
-                {weather?.daily.map((d, i) => {
+                {dailyList.map((d, i) => {
                   const Icon = getIcon(d.code);
                   const label = getWeatherLabel(d.code);
                   const dayLabel = i === 0 ? 'Today' : new Date(d.date).toLocaleDateString('en-US', { weekday: 'short' });
@@ -730,10 +739,10 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
         <div className="bg-[#0B0E14]/90 backdrop-blur-md border border-white/10 rounded-2xl p-4 shrink-0 mb-2 transform transition-transform hover:scale-[1.01]">
           <h3 className="text-xs font-semibold text-gray-200 mb-2">Hourly Temp Trend</h3>
           <div className="w-full bg-[#161B26] rounded-lg relative overflow-hidden flex flex-col h-24" onMouseLeave={() => setHoveredPoint(null)}>
-             {weather && weather.hourly && weather.hourly.length > 0 ? (
+             {hourlyList.length > 0 ? (
                (() => {
                  // Robust Filter: Ensure temp is a number and not NaN
-                 const validHourly = weather.hourly.filter(h => typeof h.temperature === 'number' && !isNaN(h.temperature));
+                 const validHourly = hourlyList.filter(h => typeof h.temperature === 'number' && !isNaN(h.temperature));
                  
                  // Fallback if no valid data found
                  if (validHourly.length === 0) return <div className="h-full flex items-center justify-center text-[10px] text-gray-500">No data available</div>;
@@ -845,9 +854,9 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
         <div className="bg-[#0B0E14]/90 backdrop-blur-md border border-white/10 rounded-2xl p-4 shrink-0 mb-4 transform transition-transform hover:scale-[1.01]">
           <h3 className="text-xs font-semibold text-gray-200 mb-2">Hourly Wind Trend</h3>
           <div className="w-full bg-[#161B26] rounded-lg relative overflow-hidden flex flex-col h-24" onMouseLeave={() => setHoveredWindPoint(null)}>
-             {weather && weather.hourly && weather.hourly.length > 0 ? (
+             {hourlyList && hourlyList.length > 0 ? (
                (() => {
-                 const validHourly = weather.hourly.filter(h => typeof h.windSpeed === 'number' && !isNaN(h.windSpeed));
+                 const validHourly = hourlyList.filter(h => typeof h.windSpeed === 'number' && !isNaN(h.windSpeed));
                  if (validHourly.length === 0) return <div className="h-full flex items-center justify-center text-[10px] text-gray-500">No data available</div>;
 
                  const winds = validHourly.map(h => h.windSpeed);
@@ -959,7 +968,7 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
               <div className="h-24 bg-white/5 rounded animate-pulse"></div>
           ) : (
               <div className="flex items-end justify-between h-24 space-x-2 px-1">
-                  {weather?.daily.map((d, i) => {
+                  {dailyList.map((d, i) => {
                       const prob = 0; // precipProb not available
                       const dayLabel = new Date(d.date).toLocaleDateString('en-US', { weekday: 'short' });
                       return (
@@ -1023,6 +1032,53 @@ export const Dashboard: React.FC<ExtendedDashboardProps> = ({
                 </div>
             </div>
         </div>
+
+        {/* Prediction Graph */}
+        {climateAnalysis?.rawPredictions && (
+          <PredictionGraph 
+            predictions={climateAnalysis.rawPredictions} 
+            loading={loading}
+            formatTemp={formatTemp}
+            tempUnit={tempUnit}
+          />
+        )}
+
+        {/* Health Recommendations */}
+        {currentCoords.lat !== 0 && currentCoords.lon !== 0 && (
+          <HealthRecommendations 
+            lat={currentCoords.lat} 
+            lon={currentCoords.lon} 
+            tempUnit={tempUnit}
+            loading={loading}
+          />
+        )}
+
+        {/* Community Insights */}
+        {currentCoords.lat !== 0 && currentCoords.lon !== 0 && (
+          <CommunityInsights 
+            lat={currentCoords.lat} 
+            lon={currentCoords.lon} 
+            loading={loading}
+          />
+        )}
+
+        {/* Carbon Footprint Tracker */}
+        {currentCoords.lat !== 0 && currentCoords.lon !== 0 && (
+          <CarbonFootprintTracker 
+            lat={currentCoords.lat} 
+            lon={currentCoords.lon} 
+            loading={loading}
+          />
+        )}
+
+        {/* Activity Planner */}
+        {currentCoords.lat !== 0 && currentCoords.lon !== 0 && (
+          <ActivityPlanner 
+            lat={currentCoords.lat} 
+            lon={currentCoords.lon} 
+            loading={loading}
+          />
+        )}
 
         {/* Recent Locations */}
         {recentLocations.length > 0 && (

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from .database import get_db
-from .models import User
+from backend.database import get_db
+from backend.models import User
 from passlib.context import CryptContext
 from jose import jwt
 from datetime import datetime, timedelta

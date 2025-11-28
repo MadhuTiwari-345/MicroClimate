@@ -36,18 +36,13 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
     },
     {
       name: "Jakt Malhotra",
-      role: "Backend Developer",
-      bio: "Architecting scalable APIs with Python and FastAPI."
-    },
-    {
-      name: "Vicky Sharma",
-      role: "Database Administrator",
-      bio: "Optimizing PostGIS queries for massive geospatial datasets."
+      role: "Debugger & Database Manager",
+      bio: "Debugging complex issues and managing database optimization and integrity."
     },
     {
       name: "Kshitij Vats",
-      role: "AI Agent Specialist",
-      bio: "Developing advanced AI agents for predictive climate modeling."
+      role: "Backend & AI Specialist",
+      bio: "Architecting scalable APIs with Python and FastAPI. Developing advanced AI agents for predictive climate modeling."
     }
   ];
 

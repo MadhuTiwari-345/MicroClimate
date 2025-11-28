@@ -5,9 +5,9 @@ import os
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
 
-from .database import Base, engine
-from .auth import router as auth_router
-from .weather_router import router as weather_router
+from backend.database import Base, engine
+from backend.auth import router as auth_router
+from backend.weather_router import router as weather_router
 
 
 # CREATE DATABASE TABLES
