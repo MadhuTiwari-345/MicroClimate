@@ -1,7 +1,0 @@
-{
-  "name": "MicroClimate 2",
-  "description": "",
-  "requestFramePermissions": [
-    "geolocation"
-  ]
-}
