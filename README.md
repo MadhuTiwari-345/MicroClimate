@@ -96,6 +96,7 @@ MicroClimate enables:
 ## 🧠 AI Model Pipeline
 
 
+```mermaid
 flowchart LR
     A[🌐 Weather APIs<br/>OpenWeather + Nominatim] --> B[📥 Data Ingestion]
     B --> C[🧹 Data Preprocessing]
