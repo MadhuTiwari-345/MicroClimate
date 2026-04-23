@@ -1,5 +1,3 @@
-
-
 <!-- 🌊 Wave Header -->
 <img src="https://capsule-render.vercel.app/api?type=waving&color=0:00c6ff,100:0072ff&height=200&section=header&text=MicroClimate&fontSize=45&fontColor=ffffff&animation=fadeIn" width="100%"/>
 
@@ -37,81 +35,82 @@
 Traditional weather systems provide **coarse-grained forecasts** that miss neighborhood-level variations.
 
 MicroClimate enables:
-- 📍 Hyper-local insights (1–5 km resolution)  
-- 🚨 Early anomaly detection  
-- 🧠 AI-driven forecasting  
+
+- 📍 Hyper-local insights (1–5 km resolution)
+- 🚨 Early anomaly detection
+- 🧠 AI-driven forecasting
 
 ---
 
 ## ✨ Key Features
 
 ### 🌡️ Real-Time Weather Intelligence
-- Temperature, humidity, pressure  
-- Wind speed & direction  
-- Live API integration  
+- Temperature, humidity, pressure
+- Wind speed & direction
+- Live API integration
 
 ### 📍 Hyper-Local Geo Support
-- Latitude/longitude tracking  
-- Reverse geocoding  
-- Dynamic updates  
+- Latitude/longitude tracking
+- Reverse geocoding
+- Dynamic updates
 
 ### 📊 Time-Series Forecasting
-- ML models (Prophet)  
-- Trend prediction  
-- Adaptive learning  
+- ML models (Prophet)
+- Trend prediction
+- Adaptive learning
 
 ### 🚨 Anomaly Detection
-- Detects sudden deviations  
-- Flags unusual patterns  
+- Detects sudden deviations
+- Flags unusual patterns
 
 ### ⚠️ Risk Scoring System
-- Aggregates anomalies  
-- Generates risk levels  
+- Aggregates anomalies
+- Generates risk levels
 
 ### 🌍 3D Visualization
-- Interactive Earth using Three.js  
-- Real-time visual insights  
+- Interactive Earth using Three.js
+- Real-time visual insights
 
 ---
 
 ## 🧩 System Architecture
 
 ### 🖥 Frontend
-- React + Vite  
-- Three.js + React Three Fiber  
+- React + Vite
+- Three.js + React Three Fiber
 
 ### ⚙️ Backend
-- FastAPI  
-- ML pipelines  
+- FastAPI
+- ML pipelines
 
 ### 🌐 Data Sources
-- OpenWeather API  
-- Nominatim API  
+- OpenWeather API
+- Nominatim API
 
 ### 🗄 Storage
-- SQLite (extendable)  
+- SQLite (extendable)
 
 ---
 
 ## 🧠 AI Model Pipeline
 
-
 ```mermaid
-flowchart LR
-    A[🌐 Weather APIs<br/>OpenWeather + Nominatim] --> B[📥 Data Ingestion]
-    B --> C[🧹 Data Preprocessing]
-    
-    C --> D[📊 Time Series Model<br/>(Prophet)]
-    C --> E[🚨 Anomaly Detection<br/>(Statistical / ML)]
-    
-    D --> F[📈 Forecast Output]
-    E --> G[⚠️ Anomaly Alerts]
-    
-    F --> H[🧠 Risk Scoring Engine]
-    G --> H
-    
-    H --> I[📊 Dashboard / API Output]
-    I --> J[🌍 3D Visualization (Three.js)]
+flowchart TD
+    A["🌐 Weather APIs"] --> B["📥 Ingestion"]
+    B --> C["🧹 Preprocessing"]
+    C --> D["🔗 Feature Engineering"]
+
+    D --> E["📊 Forecast Model"]
+    D --> F["🚨 Anomaly Detection"]
+
+    E --> G["📈 Predictions"]
+    F --> H["⚠️ Alerts"]
+
+    G --> I["🧠 Risk Engine"]
+    H --> I
+
+    I --> J["📊 Dashboard"]
+```
 
 ---
 
@@ -158,7 +157,7 @@ npm run dev
 
 Open:
 
-```
+```text
 http://localhost:5173
 ```
 
@@ -166,19 +165,19 @@ http://localhost:5173
 
 ## 🧠 Usage
 
-* Enable location 🌍
-* View real-time data
-* Monitor anomalies 🚨
-* Analyze risk scores
+- Enable location 🌍
+- View real-time data
+- Monitor anomalies 🚨
+- Analyze risk scores
 
 ---
 
 ## 📈 Future Enhancements
 
-* 🔌 IoT sensor integration
-* 🧠 LSTM / Transformer models
-* 🌾 Agriculture insights
-* 🚨 Disaster alert system
+- 🔌 IoT sensor integration
+- 🧠 LSTM / Transformer models
+- 🌾 Agriculture insights
+- 🚨 Disaster alert system
 
 ---
 
@@ -201,23 +200,17 @@ git checkout -b feature/your-feature
 git commit -m "Added feature"
 ```
 
-4. Push & PR
+4. Push & create PR
 
 ---
 
 ## 🌟 Support
 
-⭐ Star the repo
-
-🍴 Fork it
-
-📢 Share it
+⭐ Star the repo  
+🍴 Fork it  
+📢 Share it  
 
 ---
 
 <!-- 🌊 Wave Footer -->
-
 <img src="https://capsule-render.vercel.app/api?type=waving&color=0:00c6ff,100:0072ff&height=120&section=footer"/>
-
----
-
