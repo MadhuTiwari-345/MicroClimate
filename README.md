@@ -5,7 +5,7 @@
 
 <!-- 🌍 Earth Animation -->
 <p align="center">
-  <img src="https://media.giphy.com/media/3o7TKsQ8UQF5v0o6dG/giphy.gif" width="120"/>
+  <img src="https://raw.githubusercontent.com/rajput2107/rajput2107/master/Assets/earth.gif" width="150"/>
 </p>
 
 <!-- ✨ Typing Animation -->
