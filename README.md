@@ -5,7 +5,7 @@
 
 <!-- 🌍 Earth Animation -->
 <p align="center">
-  <img src="https://raw.githubusercontent.com/rajput2107/rajput2107/master/Assets/earth.gif" width="150"/>
+  <img src="https://cdn-icons-png.flaticon.com/512/414/414927.png" width="120"/>
 </p>
 
 <!-- ✨ Typing Animation -->
