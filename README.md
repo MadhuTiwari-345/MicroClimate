@@ -1,109 +1,122 @@
 
 
+<!-- 🌊 Wave Header -->
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:00c6ff,100:0072ff&height=200&section=header&text=MicroClimate&fontSize=45&fontColor=ffffff&animation=fadeIn" width="100%"/>
+
+<!-- 🌍 Earth Animation -->
+<p align="center">
+  <img src="https://media.giphy.com/media/3o7TKsQ8UQF5v0o6dG/giphy.gif" width="120"/>
+</p>
+
+<!-- ✨ Typing Animation -->
+<p align="center">
+  <img src="https://readme-typing-svg.herokuapp.com?font=Orbitron&size=26&duration=3000&color=00C9A7&center=true&vCenter=true&width=700&lines=Hyper-Local+Climate+Intelligence+🌍;AI+Powered+Forecasting+⚡;Real-Time+Anomaly+Detection+🚨;Built+for+Smart+Cities+🏙️"/>
+</p>
+
+---
+
 # 🌍 MicroClimate
 
-**Real-time Micro-Climate Forecasting & Anomaly Detection for Hyper-Local Regions**
+<p align="center">
+  <img src="https://img.shields.io/badge/AI-Powered-00c9a7?style=for-the-badge"/>
+  <img src="https://img.shields.io/badge/Frontend-React-blue?style=for-the-badge&logo=react"/>
+  <img src="https://img.shields.io/badge/Backend-FastAPI-009688?style=for-the-badge&logo=fastapi"/>
+  <img src="https://img.shields.io/badge/3D-Three.js-black?style=for-the-badge&logo=three.js"/>
+  <img src="https://img.shields.io/github/stars/MadhuTiwari-345/MicroClimate?style=for-the-badge"/>
+  <img src="https://img.shields.io/github/forks/MadhuTiwari-345/MicroClimate?style=for-the-badge"/>
+</p>
 
-MicroClimate is an AI-powered platform designed to monitor, forecast, and analyze **hyper-local weather and climate conditions** at a **1–5 km spatial resolution** — far more granular than traditional city-level forecasts. By combining live atmospheric data, machine learning models, and anomaly detection, MicroClimate provides actionable insights and early risk signals for communities, planners, and researchers.
+<p align="center">
+  <b>Real-time Micro-Climate Forecasting & Anomaly Detection for Hyper-Local Regions</b>
+</p>
 
 ---
 
 ## 🚀 Motivation
 
-Most weather platforms provide coarse-grained forecasts that fail to capture **neighborhood-level variations** caused by urban density, terrain, vegetation, and localized weather phenomena.
+Traditional weather systems provide **coarse-grained forecasts** that miss neighborhood-level variations.
 
-MicroClimate bridges this gap by enabling:
-
-* **Localized climate intelligence**
-* **Early detection of abnormal weather patterns**
-* **Risk-aware decision making** for smart cities, agriculture, and disaster preparedness
+MicroClimate enables:
+- 📍 Hyper-local insights (1–5 km resolution)  
+- 🚨 Early anomaly detection  
+- 🧠 AI-driven forecasting  
 
 ---
 
 ## ✨ Key Features
 
 ### 🌡️ Real-Time Weather Intelligence
-
-* Live ingestion of atmospheric data:
-
-  * Temperature
-  * Humidity
-  * Pressure
-  * Wind speed & direction
-* Powered by trusted public weather APIs
+- Temperature, humidity, pressure  
+- Wind speed & direction  
+- Live API integration  
 
 ### 📍 Hyper-Local Geo Support
-
-* High-precision latitude/longitude-based tracking
-* Reverse geocoding to identify the user’s **neighborhood or locality**
-* Dynamic location-based weather updates
+- Latitude/longitude tracking  
+- Reverse geocoding  
+- Dynamic updates  
 
 ### 📊 Time-Series Forecasting
+- ML models (Prophet)  
+- Trend prediction  
+- Adaptive learning  
 
-* Short-term forecasting using ML-based time-series models (e.g., Prophet)
-* Visualized trend predictions for upcoming hours/days
-* Adaptive to changing patterns over time
-
-### 🚨 Anomaly Detection Engine
-
-* Detects sudden or unusual climate deviations
-* Flags potential risks such as:
-
-  * Sudden temperature spikes/drops
-  * Abnormal humidity or pressure changes
-* Designed for early warning and monitoring systems
+### 🚨 Anomaly Detection
+- Detects sudden deviations  
+- Flags unusual patterns  
 
 ### ⚠️ Risk Scoring System
+- Aggregates anomalies  
+- Generates risk levels  
 
-* Aggregates anomalies and forecast deviations
-* Generates a **risk score** indicating potential threat levels
-* Useful for decision-making and alerting pipelines
-
-### 🌍 Interactive 3D Visualization
-
-* 3D Earth-based visualization using **Three.js**
-* Intuitive and immersive exploration of climate conditions
-* Designed for clarity, education, and insight discovery
+### 🌍 3D Visualization
+- Interactive Earth using Three.js  
+- Real-time visual insights  
 
 ---
 
 ## 🧩 System Architecture
 
 ### 🖥 Frontend
-
-* **React + Vite** for fast and modern UI
-* **Three.js + React Three Fiber** for 3D Earth visualization
-* Responsive design for smooth user interaction
+- React + Vite  
+- Three.js + React Three Fiber  
 
 ### ⚙️ Backend
-
-* **FastAPI** for high-performance API services
-* ML pipelines for:
-
-  * Time-series forecasting
-  * Anomaly detection
-* Clean RESTful endpoints for integration
+- FastAPI  
+- ML pipelines  
 
 ### 🌐 Data Sources
-
-* **OpenWeather API** – real-time and historical weather data
-* **Nominatim Geo API** – reverse geocoding (location → address)
+- OpenWeather API  
+- Nominatim API  
 
 ### 🗄 Storage
+- SQLite (extendable)  
 
-* **SQLite** (lightweight local storage)
-* Can be extended to PostgreSQL/MySQL for production-scale deployments
+---
 
-### 🚀 Deployment Stack
+## 🧠 AI Model Pipeline
 
-* Python (FastAPI, ML models)
-* Node.js (React frontend)
+
+flowchart LR
+    A[🌐 Weather APIs<br/>OpenWeather + Nominatim] --> B[📥 Data Ingestion]
+    B --> C[🧹 Data Preprocessing]
+    
+    C --> D[📊 Time Series Model<br/>(Prophet)]
+    C --> E[🚨 Anomaly Detection<br/>(Statistical / ML)]
+    
+    D --> F[📈 Forecast Output]
+    E --> G[⚠️ Anomaly Alerts]
+    
+    F --> H[🧠 Risk Scoring Engine]
+    G --> H
+    
+    H --> I[📊 Dashboard / API Output]
+    I --> J[🌍 3D Visualization (Three.js)]
 
 ---
 
 ## 🛠 Installation & Setup
 
-### 1️⃣ Clone the Repository
+### 1️⃣ Clone Repository
 
 ```bash
 git clone https://github.com/MadhuTiwari-345/MicroClimate.git
@@ -119,14 +132,14 @@ cd backend
 pip install -r requirements.txt
 ```
 
-Create a `.env` file and add:
+Create `.env` file:
 
 ```env
-OPENWEATHER_API_KEY=your_openweather_api_key
-NOMINATIM_API_KEY=your_nominatim_api_key   # optional
+OPENWEATHER_API_KEY=your_key
+NOMINATIM_API_KEY=your_key
 ```
 
-Run the backend server:
+Run:
 
 ```bash
 uvicorn backend.main:app --reload
@@ -142,7 +155,7 @@ npm install
 npm run dev
 ```
 
-The application will be available at:
+Open:
 
 ```
 http://localhost:5173
@@ -152,56 +165,56 @@ http://localhost:5173
 
 ## 🧠 Usage
 
-1. Open the frontend application
-2. Allow location access for hyper-local detection
-3. View:
-
-   * Real-time micro-climate conditions
-   * Forecast graphs and trends
-   * Anomaly alerts and risk scores
-4. Use backend APIs for:
-
-   * Dashboards
-   * Smart city tools
-   * Research integrations
+* Enable location 🌍
+* View real-time data
+* Monitor anomalies 🚨
+* Analyze risk scores
 
 ---
 
 ## 📈 Future Enhancements
 
-* 🔌 **IoT Sensor Integration**
-
-  * Street/block-level data ingestion
-  * Higher accuracy micro-climate mapping
-
-* 🧠 **Advanced Deep Learning Models**
-
-  * LSTM / Transformer-based forecasting
-  * Complex climate pattern recognition
-
-* 🌾 **Domain-Specific Modules**
-
-  * Agriculture advisories
-  * Smart city planning tools
-  * Energy optimization insights
-
-* 🚨 **Disaster & Emergency Alerts**
-
-  * Government and municipal integrations
-  * Real-time early warning systems
+* 🔌 IoT sensor integration
+* 🧠 LSTM / Transformer models
+* 🌾 Agriculture insights
+* 🚨 Disaster alert system
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome and appreciated!
-You can help by:
+<p align="center">
+  <img src="https://img.shields.io/badge/Contributions-Welcome-00c9a7?style=for-the-badge"/>
+</p>
 
-* Reporting bugs
-* Suggesting features
-* Improving documentation
-* Submitting pull requests
+1. Fork the repo
+2. Create a branch
 
-Please open an issue or start a discussion before major changes.
+```bash
+git checkout -b feature/your-feature
+```
+
+3. Commit
+
+```bash
+git commit -m "Added feature"
+```
+
+4. Push & PR
 
 ---
+
+## 🌟 Support
+
+⭐ Star the repo
+🍴 Fork it
+📢 Share it
+
+---
+
+<!-- 🌊 Wave Footer -->
+
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:00c6ff,100:0072ff&height=120&section=footer"/>
+
+---
+
