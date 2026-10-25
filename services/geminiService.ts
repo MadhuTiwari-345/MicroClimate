@@ -1,9 +1,15 @@
 
 import { GoogleGenAI } from "@google/genai";
 
-// Initialize the Gemini API client
-// The API key is injected automatically via process.env.API_KEY
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Initialize Gemini only when a feature actually needs it. A missing key must not
+// crash the entire app during module loading (especially in a Vite browser build).
+const getAI = () => {
+  const apiKey = (import.meta as ImportMeta & { env?: { VITE_GEMINI_API_KEY?: string } }).env?.VITE_GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("Gemini API key is not configured. Set VITE_GEMINI_API_KEY in the deployment environment.");
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
 // --- MOCK DATA FOR FALLBACKS ---
 const MOCK_ALERTS = [
@@ -26,7 +32,7 @@ const MOCK_NEWS = [
  */
 export const getMicroclimateSnapshot = async (query: string): Promise<string> => {
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAI().models.generateContent({
       model: 'gemini-2.5-flash',
       contents: `Provide a very brief (2 sentences max) microclimate summary for: ${query}. Focus on temperature trends and unique atmospheric conditions.`,
       config: { temperature: 0.7 }
@@ -43,7 +49,7 @@ export const getMicroclimateSnapshot = async (query: string): Promise<string> =>
  */
 export const getLocationSuggestions = async (query: string): Promise<string[]> => {
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAI().models.generateContent({
       model: 'gemini-2.5-flash',
       contents: `List 5 distinct city or region names that start with or match "${query}". 
       IMPORTANT: Prioritize locations in India (e.g., Mumbai, Delhi, Bangalore, smaller towns) if they match. 
@@ -63,7 +69,7 @@ export const getLocationSuggestions = async (query: string): Promise<string[]> =
  */
 export const getCoordinates = async (location: string): Promise<{ lat: number; lon: number } | null> => {
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAI().models.generateContent({
       model: 'gemini-2.5-flash',
       contents: `Return the latitude and longitude for "${location}" as a JSON object with keys 'lat' and 'lon'. If the input is a ZIP code or Pincode (especially Indian Pincodes), find the center coordinates for that postal area. Do not add any markdown or explanation. Example: {"lat": 48.8566, "lon": 2.3522}`,
     });
@@ -85,7 +91,7 @@ export const getCoordinates = async (location: string): Promise<{ lat: number; l
  */
 export const getCityFromCoordinates = async (lat: number, lon: number): Promise<string> => {
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAI().models.generateContent({
       model: 'gemini-2.5-flash',
       contents: `Return the closest city name, region, or ocean name for coordinates ${lat}, ${lon}. If it is an ocean or remote area, name the body of water or region. Return ONLY the string. No JSON, no markdown.`,
     });
@@ -100,7 +106,7 @@ export const getCityFromCoordinates = async (lat: number, lon: number): Promise<
  */
 export const getClimateAnalysis = async (location: string, tempData: number, windData: number): Promise<{ anomaly: string, prediction: string }> => {
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAI().models.generateContent({
         model: 'gemini-2.5-flash',
         contents: `For the location "${location}" with current temp ${tempData}°C and wind ${windData}km/h, generate two short JSON fields: 
         1. 'anomaly': A scientific-sounding, LIVE STATUS report about current microclimate conditions. Mention deviations.
@@ -123,7 +129,7 @@ export const getClimateAnalysis = async (location: string, tempData: number, win
  */
 export const getGlobalWeatherEvents = async (): Promise<any[]> => {
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAI().models.generateContent({
       model: 'gemini-2.5-flash',
       contents: `Generate a list of 5 significant, realistic global weather events happening right now. 
       Return valid JSON array. 
@@ -146,7 +152,7 @@ export const getClimateUpdates = async (category: string): Promise<any[]> => {
     Return valid JSON array.
     Format: [{ "id": number, "title": "Headline", "source": "Source Name", "date": "Date", "summary": "2 sentence summary", "category": "${category}", "imageUrl": "placeholder" }]`;
 
-    const response = await ai.models.generateContent({
+    const response = await getAI().models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
     });
@@ -163,7 +169,7 @@ export const getClimateUpdates = async (category: string): Promise<any[]> => {
  */
 export const getArticleDetails = async (title: string): Promise<string> => {
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAI().models.generateContent({
       model: 'gemini-2.5-flash',
       contents: `Write a detailed, 3-paragraph news article about: "${title}". Format as simple HTML.`,
     });
@@ -182,7 +188,7 @@ export const getArticleDetails = async (title: string): Promise<string> => {
  */
 export const generateClimateReport = async (): Promise<{ title: string; content: string; date: string; size: string } | null> => {
   try {
-    const response = await ai.models.generateContent({
+    const response = await getAI().models.generateContent({
       model: 'gemini-2.5-flash',
       contents: `Generate a realistic title and short summary for a climate report. Return JSON: { "title": "...", "content": "...", "date": "...", "size": "..." }`,
     });
